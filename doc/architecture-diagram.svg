@@ -88,7 +88,7 @@
 
   <!-- System info bar -->
   <rect x="52" y="360" width="733" height="28" rx="8" fill="#f7fafc" stroke="#e2e8f0" stroke-width="1"/>
-  <text x="420" y="379" text-anchor="middle" font-size="11" fill="#718096">主控：全志V3s | 语音：启英泰伦CI130x + 讯飞AIUI | 打印：58mm热敏 | 系统：RTOS/Linux</text>
+  <text x="420" y="379" text-anchor="middle" font-size="11" fill="#718096">主控：全志V3s | 语音：启英泰伦CI130x + 讯飞AIUI | 打印：ZINK | 系统：RTOS/Linux</text>
 
   <!-- Arrow: Layer 2 to Layer 3 -->
   <line x1="420" y1="440" x2="420" y2="462" stroke="#a0aec0" stroke-width="2"/>
@@ -188,7 +188,7 @@
 
   <!-- Row 2 -->
   <text x="60" y="862" font-size="10" fill="#2d3748">打印模组</text>
-  <text x="200" y="862" font-size="10" fill="#718096">58mm蓝牙热敏</text>
+  <text x="200" y="862" font-size="10" fill="#718096">ZINK</text>
   <text x="420" y="862" font-size="10" fill="#718096">203dpi</text>
   <text x="580" y="862" font-size="10" fill="#2d3748">¥45</text>
   <text x="680" y="862" font-size="10" fill="#718096">凯胜诺/汉印</text>
