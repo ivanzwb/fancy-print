@@ -3,7 +3,9 @@
 本文档服务于 **第一台可拿得出手的工程样机**：**打印一体机**、**便于移动**、**约手机尺寸触控屏**（孩子看图确认后再打 ZINK 纸）。  
 样机阶段允许 **亚克力 / 3D 打印堆叠**、线材外露；以 **功能闭环 + 可复现问题** 为优先，外观工艺后置。
 
-**操作系统口径（与量产一致）**：量产已定为 **Debian / Ubuntu 嵌入式裁剪**（见 [`mass-production-app-dev.md`](mass-production-app-dev.md) **§2**）。工程样机 **只选 Debian 系**：**Raspberry Pi OS**（Debian 同源）或 **板厂官方 Debian / Ubuntu** 镜像，**避免**样机用与 Debian 包体系不一致的发行版，以免打印栈与依赖到量产推倒重来。
+**整机外观对齐（与换壳设计）**：对外与手板讨论时，**机身比例以** [`../doc/fancy-print-product-render.png`](../doc/fancy-print-product-render.png) **为唯一基准图**；可更换主题壳的体系与素材目录见 [`../doc/product-render-system.md`](../doc/product-render-system.md)、[`../doc/renders/shells/`](../doc/renders/shells/)。
+
+**操作系统口径（与量产一致）**：量产已定为 **Debian / Ubuntu 嵌入式裁剪**（见 [`production-app-dev.md`](production-app-dev.md) **§2**）。工程样机 **只选 Debian 系**：**Raspberry Pi OS**（Debian 同源）或 **板厂官方 Debian / Ubuntu** 镜像，**避免**样机用与 Debian 包体系不一致的发行版，以免打印栈与依赖到量产推倒重来。
 **重要**：很多消费级 ZINK 机仅 **蓝牙 + 厂商 App**。工程样机主控若走 **Linux 单板**，务必提前验证打印机是否支持 **USB 打印类 / IPP** 或厂商 **ARM SDK**；否则打印链路会卡在工程样机之外。
 
 ---
@@ -48,7 +50,7 @@
 
 ### 工程样机操作系统（装什么）
 
-**原则**：与 [`mass-production-app-dev.md`](mass-production-app-dev.md) **§2 / §2.2** 对齐 — 仅 **Debian 系**；开发期可用 **apt** 装调试包，**收口前**对照量产 **manifest 白名单** 删包并再测打印 / 音频 / 触摸全链路。
+**原则**：与 [`production-app-dev.md`](production-app-dev.md) **§2 / §2.2** 对齐 — 仅 **Debian 系**；开发期可用 **apt** 装调试包，**收口前**对照量产 **manifest 白名单** 删包并再测打印 / 音频 / 触摸全链路。
 
 | 主控（E1） | 推荐系统 | 说明 |
 |------------|----------|------|
@@ -60,9 +62,9 @@
 
 **打印与音频**：用发行版自带的 **CUPS**（或厂商指定 **IPP/USB** 栈）接 **E5**；拾音放音走 **PipeWire** 或 **ALSA**（按镜像默认即可）。触摸屏在 X11/Wayland 下校准后 **冻结配置**。
 
-**版本冻结**：记录 **镜像文件名、`uname -r`、关键包版本**；演示与评审前关闭 **无人值守升级**，避免「昨晚还能打、今早内核更了不能打」。冻结物应能喂给量产 **rootfs manifest**（见 [`mass-production-app-dev.md`](mass-production-app-dev.md) **§2.2**）。
+**版本冻结**：记录 **镜像文件名、`uname -r`、关键包版本**；演示与评审前关闭 **无人值守升级**，避免「昨晚还能打、今早内核更了不能打」。冻结物应能喂给量产 **rootfs manifest**（见 [`production-app-dev.md`](production-app-dev.md) **§2.2**）。
 
-应用开发方式（UI 选型、Remote-SSH、CUPS、systemd 等）见 **[`mass-production-app-dev.md`](mass-production-app-dev.md)**（**§7**）。
+应用开发方式（UI 选型、Remote-SSH、CUPS、systemd 等）见 **[`production-app-dev.md`](production-app-dev.md)**（**§7**）。
 
 ### 与量产「Debian / Ubuntu 裁剪」的衔接（收口检查）
 
@@ -73,7 +75,7 @@
 | **打印栈** | `lp` / CUPS 与 E5 绑定验证 | `edge-daemon` 内同一抽象；**不更换**为 Android 打印模型 |
 | **证据留存** | 版本冻结记录 | `dpkg --get-selections` 或等价 **manifest** 入仓，与 CI 构建一致 |
 
-**软件侧（工程样机必备）**：在 **Debian 系**镜像上固定 **OS 版本**、**内核 / CUPS / 应用** 的 commit；预装 **远程日志**（或网线 SSH）；打印前 UI 走 **确认 / 重试** 与 **线稿 / 淡彩内容策略**（与 [`README.md`](README.md) 开篇 ZINK 产品话术一致）。产出须能映射到量产 **manifest**（见 [`mass-production-app-dev.md`](mass-production-app-dev.md) **§2.2**）。
+**软件侧（工程样机必备）**：在 **Debian 系**镜像上固定 **OS 版本**、**内核 / CUPS / 应用** 的 commit；预装 **远程日志**（或网线 SSH）；打印前 UI 走 **确认 / 重试** 与 **线稿 / 淡彩内容策略**（与 [`README.md`](README.md) 开篇 ZINK 产品话术一致）。产出须能映射到量产 **manifest**（见 [`production-app-dev.md`](production-app-dev.md) **§2.2**）。
 
 ---
 
@@ -85,7 +87,7 @@
 
 | 维度 | 工程样机 | 量产（参考 §6.2） |
 |------|----------|-------------------|
-| **系统** | **Debian 系**（Pi OS / 板厂 Debian·Ubuntu），可 `apt` 迭代 | **裁剪 Debian/Ubuntu** + 只读/OTA（见 [`mass-production-app-dev.md`](mass-production-app-dev.md) **§2**） |
+| **系统** | **Debian 系**（Pi OS / 板厂 Debian·Ubuntu），可 `apt` 迭代 | **裁剪 Debian/Ubuntu** + 只读/OTA（见 [`production-app-dev.md`](production-app-dev.md) **§2**） |
 | 主控 | **开发板零售价**（如树莓派 5） | 定制主板 + SoC 批量价 |
 | 打印 | **整机或模组零售价**、未必拿到 OEM 底价 | ZINK 机芯批量议价 |
 | 结构 | **3D 打印 / 亚克力手板**，件少价高 | 注塑开模后摊销 |
@@ -212,7 +214,7 @@
 
 ## 与仓库其他文档的关系
 
-- **量产 OS + 端上 APP（合并文档）**：[`mass-production-app-dev.md`](mass-production-app-dev.md)  
+- **量产 OS + 端上 APP（合并文档）**：[`production-app-dev.md`](production-app-dev.md)  
 - ZINK 路线、话术与幅面 / 介质：[`README.md`](README.md)、[`demo-kit-bom.md`](demo-kit-bom.md)（本文）  
 - 硬件总入口：[`README.md`](README.md)  
 - 产品定义与量产 BOM：[`doc/项目计划书-儿童AI打印机.md`](../doc/项目计划书-儿童AI打印机.md)

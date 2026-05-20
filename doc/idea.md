@@ -2,6 +2,8 @@
 
 > 让孩子自己完成从"哇"到"拿到可以涂色的纸"的完整闭环。
 
+**外观 / 换壳**：整机渲染 **唯一基准图** 见 [`doc/fancy-print-product-render.png`](doc/fancy-print-product-render.png)；可更换外壳体系说明见 [`doc/product-render-system.md`](doc/product-render-system.md)。
+
 ---
 
 ## 核心问题
@@ -31,7 +33,7 @@
 3. **家长需要喘息** — 5-12岁孩子的家长想要让孩子独立玩，家长不想每次都介入
 4. **安静书市场增长** — 家长愿意为儿童创意内容付费，市场正在增长
 
-**量产端侧 OS（已定稿）**：**Debian / Ubuntu 嵌入式裁剪**（与 ZINK + CUPS 文档主线一致；详见 [`hardware/mass-production-app-dev.md`](hardware/mass-production-app-dev.md)）。
+**量产端侧 OS（已定稿）**：**Debian / Ubuntu 嵌入式裁剪**（与 ZINK + CUPS 文档主线一致；详见 [`hardware/production-app-dev.md`](hardware/production-app-dev.md)）。
 
 ---
 

@@ -13,6 +13,8 @@
 
 **核心决策逻辑：** Phase A验证通过（见"用户测试验收标准"第4周）才进入Phase B。若未通过，重新定位产品方向，不做无效硬件投入。
 
+**外观与换壳（与仓库对齐）**：整机造型的 **唯一渲染基准图** 见仓库 [`doc/fancy-print-product-render.png`](doc/fancy-print-product-render.png)；可更换主题外壳的体系与素材目录见 [`doc/product-render-system.md`](doc/product-render-system.md)、[`doc/renders/shells/`](doc/renders/shells/)。
+
 **二、** **市场背景与痛点分析**
 
 随着AIGC技术的爆发式发展，儿童教育硬件市场正迎来新一轮的智能化升级。多模态大模型（语音识别、文生图）的成熟，使低成本、高智能的实时硬件交互成为可能。
@@ -347,7 +349,7 @@
 **第5周：需求冻结与选型**
 - 召开硬件启动会，依据Phase A验证结果锁定硬件规格
 - 完成硬件选型：主控（树莓派/RK3588）、**ZINK 打印模组（OEM 规格）**、麦克风阵列、扬声器、显示屏
-- **量产端侧操作系统已定稿**：**Debian / Ubuntu 嵌入式裁剪**（与树莓派样机同属 Debian 系；仓库 `hardware/mass-production-app-dev.md`）；**Android 不作为本项目主路径**
+- **量产端侧操作系统已定稿**：**Debian / Ubuntu 嵌入式裁剪**（与树莓派样机同属 Debian 系；仓库 `hardware/production-app-dev.md`）；**Android 不作为本项目主路径**
 - 确认技术栈，开通备用大模型API
 - 启动CCC认证咨询，确认认证路径和材料清单
 - 完成核心元器件采购下单

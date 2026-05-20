@@ -50,7 +50,7 @@
   <!-- ============ Layer 2: Edge Device (Debian/Ubuntu stack) ============ -->
   <rect x="30" y="240" width="780" height="218" rx="12" fill="#fffff0" stroke="#f6e05e" stroke-width="1.5" filter="url(#shadow)"/>
   <text x="48" y="264" font-size="13" font-weight="700" fill="#975a16">二、设备端 (Edge) — Debian / Ubuntu 嵌入式裁剪</text>
-  <text x="48" y="280" font-size="10" fill="#a08060">量产 OS 已定稿：同源 Debian 系 rootfs · 只读根 + overlay（或 A/B）· manifest 白名单 · 签名 OTA（详见 hardware/mass-production-app-dev.md）</text>
+  <text x="48" y="280" font-size="10" fill="#a08060">量产 OS 已定稿：同源 Debian 系 rootfs · 只读根 + overlay（或 A/B）· manifest 白名单 · 签名 OTA（详见 hardware/production-app-dev.md）</text>
 
   <!-- 2-1: UI -->
   <rect x="52" y="292" width="176" height="86" rx="10" fill="#fff" stroke="#f6e05e" stroke-width="1.5" filter="url(#card-shadow)"/>

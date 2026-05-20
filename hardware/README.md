@@ -6,7 +6,7 @@
 
 ## 量产与端上应用（单一文档）
 
-**[`mass-production-app-dev.md`](mass-production-app-dev.md)** — **量产 OS：Debian / Ubuntu 嵌入式裁剪**（manifest、OTA、产线）；**端上 APP**：`edge-daemon` + UI 分层、IPC、systemd、Remote-SSH / kiosk / CUPS 工程习惯、测试与交付物；与 [`demo-kit-bom.md`](demo-kit-bom.md) 工程样机 **Debian 系 OS** 对齐。
+**[`production-app-dev.md`](production-app-dev.md)** — **量产 OS：Debian / Ubuntu 嵌入式裁剪**（manifest、OTA、产线）；**端上 APP**：`edge-daemon` + UI 分层、IPC、systemd、Remote-SSH / kiosk / CUPS 工程习惯、测试与交付物；与 [`demo-kit-bom.md`](demo-kit-bom.md) 工程样机 **Debian 系 OS** 对齐。
 
 ## 工程样机 BOM（采购 / Bring-up）
 
@@ -29,4 +29,4 @@
 ## 与仓库其他材料的关系
 
 - [`doc/场景.md`](../doc/场景.md) 已提到 ZINK 成本线，硬件与定价需与之对齐。  
-- [`doc/architecture-diagram.svg`](../doc/architecture-diagram.svg) 中 **设备端** 已按 **Debian / Ubuntu 嵌入式裁剪** 展开：UI 应用、`edge-daemon`（CUPS/ZINK）、`cloud-connector`、`ota-agent` 与 **systemd / 只读根+OTA** 基线；云端层仍为 ASR / LLM / 生图 / 审核等。
+- 成品渲染 **体系说明**（**`fancy-print-product-render.png` 为唯一机身基准** + 可更换主题壳）见 [`doc/product-render-system.md`](../doc/product-render-system.md)；外壳素材目录见 [`doc/renders/shells/`](../doc/renders/shells/)。

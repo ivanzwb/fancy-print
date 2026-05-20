@@ -85,6 +85,7 @@
   - **与 ZINK 的关系**：**市售 ZINK 口袋类成品** 的出纸多为 **常见口袋幅面**，单张面积 **通常远小于 A5**；若整机仍以 **ZINK 全彩无墨** 为主线，须在 **大画幅 ZINK OEM、宽幅/联张纸路**，或与 **A5 兼容的第二条打印引擎（如 A5 喷墨 / 热升华等）** 中择一并锁 BOM 与 Debian 打印栈。  
   - **工程样机**：BOM 与验收以 **A5 可达** 为准，见 [`../hardware/demo-kit-bom.md`](../hardware/demo-kit-bom.md)。
 - 交互方式：语音对话 + **约手机尺寸触控屏（约 5.9～6.8 寸）**：**FHD+、IPS 或高质量 OLED、全贴合**，孩子**看图确认**后再打印；靠 **高 PPI** 与亮度保证线稿可辨，**勿用 TN 低端模组**
+- **外观与换壳**：整机造型的 **唯一渲染基准** 为 [`../doc/fancy-print-product-render.png`](../doc/fancy-print-product-render.png)（基础款）；主题外壳为可扩展 SKU，流程与命名见 [`../doc/product-render-system.md`](../doc/product-render-system.md)、[`../doc/renders/shells/`](../doc/renders/shells/)。
 
 **核心功能**：
 - 孩子独立完成：语音输入 → 内容生成 → **屏上预览确认** → 在 **定稿介质（A5 目标；主路线 ZINK 或其它已定引擎）** 上成图（全彩无墨或已定彩打方案）
@@ -97,7 +98,7 @@
 
 **定价对标**：整机更可能落在 **¥399–599** 带（对标儿童创意硬件 + **ZINK 纸**耗材包）；**不含屏口袋类**低价带不宜直接作对标，须随 **ZINK BOM** 单独重测。
 
-**工程样机**：硬件 BOM、集成顺序与验收口径见 [`../hardware/demo-kit-bom.md`](../hardware/demo-kit-bom.md)。**量产操作系统 + 端上应用**（分层、IPC、OTA、产测、开发工作流与交付物）见 [`../hardware/mass-production-app-dev.md`](../hardware/mass-production-app-dev.md)。**量产操作系统已定稿**：**Debian / Ubuntu 嵌入式裁剪**（与 Raspberry Pi OS 同属 Debian 系）。
+**工程样机**：硬件 BOM、集成顺序与验收口径见 [`../hardware/demo-kit-bom.md`](../hardware/demo-kit-bom.md)。**量产操作系统 + 端上应用**（分层、IPC、OTA、产测、开发工作流与交付物）见 [`../hardware/production-app-dev.md`](../hardware/production-app-dev.md)。**量产操作系统已定稿**：**Debian / Ubuntu 嵌入式裁剪**（与 Raspberry Pi OS 同属 Debian 系）。
 
 ---
 
@@ -157,7 +158,7 @@
 
 ### 5.4 软件系统架构
 
-**量产端侧操作系统（已定稿）**：**Debian / Ubuntu 嵌入式裁剪**（只读根 / overlay、签名 OTA、常驻服务管理硬件与网络）。工程样机用 **Raspberry Pi OS** 验证业务；量产在定制 SoC 板上交付 **同源工具链** 的裁剪发行版，避免 Android 与 **CUPS / `lp` / ZINK 硬件文档（`demo-kit-bom`、`hardware/README`）** 主线分叉。详见 [`../hardware/mass-production-app-dev.md`](../hardware/mass-production-app-dev.md)。
+**量产端侧操作系统（已定稿）**：**Debian / Ubuntu 嵌入式裁剪**（只读根 / overlay、签名 OTA、常驻服务管理硬件与网络）。工程样机用 **Raspberry Pi OS** 验证业务；量产在定制 SoC 板上交付 **同源工具链** 的裁剪发行版，避免 Android 与 **CUPS / `lp` / ZINK 硬件文档（`demo-kit-bom`、`hardware/README`）** 主线分叉。详见 [`../hardware/production-app-dev.md`](../hardware/production-app-dev.md)。
 
 ```
 ┌─────────────────────────────────────────────────────────┐
