@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 1020" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 980" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif">
   <defs>
     <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#f0f4f8;stop-opacity:1"/>
@@ -13,11 +13,11 @@
   </defs>
 
   <!-- Background -->
-  <rect width="840" height="1020" rx="16" fill="url(#g1)" stroke="#e2e8f0" stroke-width="1"/>
+  <rect width="840" height="980" rx="16" fill="url(#g1)" stroke="#e2e8f0" stroke-width="1"/>
 
   <!-- Title -->
   <text x="420" y="42" text-anchor="middle" font-size="20" font-weight="700" fill="#1a202c">系统架构图</text>
-  <text x="420" y="62" text-anchor="middle" font-size="12" fill="#718096">儿童AI智能对话打印机 — 系统整体逻辑架构</text>
+  <text x="420" y="62" text-anchor="middle" font-size="12" fill="#718096">奇想印印（fancy-print）— 儿童 AI 智能对话打印机 · 端侧 Debian/Ubuntu 嵌入式裁剪 + 云端服务</text>
 
   <!-- ============ Layer 1: User Interaction ============ -->
   <rect x="30" y="82" width="780" height="120" rx="12" fill="#ebf8ff" stroke="#90cdf4" stroke-width="1.5" filter="url(#shadow)"/>
@@ -27,187 +27,164 @@
   <rect x="52" y="118" width="225" height="70" rx="10" fill="#fff" stroke="#bee3f8" stroke-width="1.5" filter="url(#card-shadow)"/>
   <text x="164" y="146" text-anchor="middle" font-size="24">🗣️</text>
   <text x="164" y="166" text-anchor="middle" font-size="13" font-weight="600" fill="#2d3748">儿童语音输入</text>
-  <text x="164" y="181" text-anchor="middle" font-size="10" fill="#718096">"我要一只穿宇航服的兔子"</text>
+  <text x="164" y="181" text-anchor="middle" font-size="10" fill="#718096">「我要一只穿宇航服的兔子」</text>
 
   <!-- Module 2: Screen -->
   <rect x="307" y="118" width="225" height="70" rx="10" fill="#fff" stroke="#bee3f8" stroke-width="1.5" filter="url(#card-shadow)"/>
   <text x="419" y="146" text-anchor="middle" font-size="24">🖥️</text>
-  <text x="419" y="166" text-anchor="middle" font-size="13" font-weight="600" fill="#2d3748">2寸TFT交互屏</text>
-  <text x="419" y="181" text-anchor="middle" font-size="10" fill="#718096">操作引导 · 模式选择 · 状态显示</text>
+  <text x="419" y="166" text-anchor="middle" font-size="13" font-weight="600" fill="#2d3748">约 6 寸触控屏</text>
+  <text x="419" y="181" text-anchor="middle" font-size="10" fill="#718096">看图确认 · 家长锁 · 状态与设置</text>
 
   <!-- Module 3: Buttons -->
   <rect x="562" y="118" width="225" height="70" rx="10" fill="#fff" stroke="#bee3f8" stroke-width="1.5" filter="url(#card-shadow)"/>
   <text x="674" y="146" text-anchor="middle" font-size="24">👆</text>
-  <text x="674" y="166" text-anchor="middle" font-size="13" font-weight="600" fill="#2d3748">按键交互</text>
-  <text x="674" y="181" text-anchor="middle" font-size="10" fill="#718096">唤醒 · 模式切换 · 打印确认</text>
+  <text x="674" y="166" text-anchor="middle" font-size="13" font-weight="600" fill="#2d3748">按键 / 唤醒</text>
+  <text x="674" y="181" text-anchor="middle" font-size="10" fill="#718096">唤醒 · 模式 · 打印确认</text>
 
   <!-- Arrow: Layer 1 to Layer 2 -->
   <line x1="420" y1="202" x2="420" y2="224" stroke="#a0aec0" stroke-width="2"/>
   <polygon points="414,222 420,232 426,222" fill="#a0aec0"/>
-  <rect x="345" y="208" width="150" height="18" rx="9" fill="#fff" stroke="#e2e8f0" stroke-width="1"/>
-  <text x="420" y="221" text-anchor="middle" font-size="10" fill="#718096">WiFi / 离线语音唤醒</text>
+  <rect x="300" y="208" width="240" height="18" rx="9" fill="#fff" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="420" y="221" text-anchor="middle" font-size="10" fill="#718096">触屏 / 按键 → UI 应用（IPC）→ edge-daemon</text>
 
-  <!-- ============ Layer 2: Edge Device ============ -->
-  <rect x="30" y="240" width="780" height="200" rx="12" fill="#fffff0" stroke="#f6e05e" stroke-width="1.5" filter="url(#shadow)"/>
-  <text x="48" y="264" font-size="13" font-weight="700" fill="#975a16">二、设备端 (Edge Device)</text>
+  <!-- ============ Layer 2: Edge Device (Debian/Ubuntu stack) ============ -->
+  <rect x="30" y="240" width="780" height="218" rx="12" fill="#fffff0" stroke="#f6e05e" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="48" y="264" font-size="13" font-weight="700" fill="#975a16">二、设备端 (Edge) — Debian / Ubuntu 嵌入式裁剪</text>
+  <text x="48" y="280" font-size="10" fill="#a08060">量产 OS 已定稿：同源 Debian 系 rootfs · 只读根 + overlay（或 A/B）· manifest 白名单 · 签名 OTA（详见 hardware/mass-production-app-dev.md）</text>
 
-  <!-- 2-1: Wake -->
-  <rect x="52" y="276" width="140" height="74" rx="10" fill="#fff" stroke="#f6e05e" stroke-width="1.5" filter="url(#card-shadow)"/>
-  <text x="122" y="302" text-anchor="middle" font-size="20">🔊</text>
-  <text x="122" y="320" text-anchor="middle" font-size="12" font-weight="600" fill="#2d3748">离线唤醒引擎</text>
-  <text x="122" y="335" text-anchor="middle" font-size="9" fill="#718096">启英泰伦CI130x</text>
-  <text x="122" y="347" text-anchor="middle" font-size="9" fill="#718096">零延迟唤醒·无需网络</text>
+  <!-- 2-1: UI -->
+  <rect x="52" y="292" width="176" height="86" rx="10" fill="#fff" stroke="#f6e05e" stroke-width="1.5" filter="url(#card-shadow)"/>
+  <text x="140" y="318" text-anchor="middle" font-size="20">🪟</text>
+  <text x="140" y="336" text-anchor="middle" font-size="12" font-weight="600" fill="#2d3748">UI 应用 fancy-print-ui</text>
+  <text x="140" y="351" text-anchor="middle" font-size="9" fill="#718096">Qt / Web kiosk · Wayland/X11</text>
+  <text x="140" y="364" text-anchor="middle" font-size="9" fill="#718096">看图确认 · 家长锁（IPC 调 daemon）</text>
 
-  <!-- 2-2: Audio -->
-  <rect x="200" y="276" width="140" height="74" rx="10" fill="#fff" stroke="#f6e05e" stroke-width="1.5" filter="url(#card-shadow)"/>
-  <text x="270" y="302" text-anchor="middle" font-size="20">🎤</text>
-  <text x="270" y="320" text-anchor="middle" font-size="12" font-weight="600" fill="#2d3748">语音采集&amp;降噪</text>
-  <text x="270" y="335" text-anchor="middle" font-size="9" fill="#718096">麦克风阵列</text>
-  <text x="270" y="347" text-anchor="middle" font-size="9" fill="#718096">环境降噪·音频编码</text>
+  <!-- 2-2: edge-daemon -->
+  <rect x="236" y="292" width="176" height="86" rx="10" fill="#fff" stroke="#f6e05e" stroke-width="1.5" filter="url(#card-shadow)"/>
+  <text x="324" y="318" text-anchor="middle" font-size="20">⚙️</text>
+  <text x="324" y="336" text-anchor="middle" font-size="12" font-weight="600" fill="#2d3748">edge-daemon</text>
+  <text x="324" y="351" text-anchor="middle" font-size="9" fill="#718096">CUPS / lp · ZINK 打印队列</text>
+  <text x="324" y="364" text-anchor="middle" font-size="9" fill="#718096">音频 PipeWire · GPIO · 离线重试</text>
 
-  <!-- 2-3: Rendering -->
-  <rect x="348" y="276" width="140" height="74" rx="10" fill="#fff" stroke="#f6e05e" stroke-width="1.5" filter="url(#card-shadow)"/>
-  <text x="418" y="302" text-anchor="middle" font-size="20">🖼️</text>
-  <text x="418" y="320" text-anchor="middle" font-size="12" font-weight="600" fill="#2d3748">图片渲染引擎</text>
-  <text x="418" y="335" text-anchor="middle" font-size="9" fill="#718096">图像解码·尺寸适配</text>
-  <text x="418" y="347" text-anchor="middle" font-size="9" fill="#718096">打印灰度转换</text>
+  <!-- 2-3: cloud-connector -->
+  <rect x="420" y="292" width="176" height="86" rx="10" fill="#fff" stroke="#f6e05e" stroke-width="1.5" filter="url(#card-shadow)"/>
+  <text x="508" y="318" text-anchor="middle" font-size="20">☁️</text>
+  <text x="508" y="336" text-anchor="middle" font-size="12" font-weight="600" fill="#2d3748">cloud-connector</text>
+  <text x="508" y="351" text-anchor="middle" font-size="9" fill="#718096">HTTPS · MQTT · 鉴权与策略</text>
+  <text x="508" y="364" text-anchor="middle" font-size="9" fill="#718096">可与 daemon 同进程或拆分</text>
 
-  <!-- 2-4: Print Queue -->
-  <rect x="496" y="276" width="140" height="74" rx="10" fill="#fff" stroke="#f6e05e" stroke-width="1.5" filter="url(#card-shadow)"/>
-  <text x="566" y="302" text-anchor="middle" font-size="20">📋</text>
-  <text x="566" y="320" text-anchor="middle" font-size="12" font-weight="600" fill="#2d3748">打印队列管理</text>
-  <text x="566" y="335" text-anchor="middle" font-size="9" fill="#718096">任务排队·重试机制</text>
-  <text x="566" y="347" text-anchor="middle" font-size="9" fill="#718096">离线缓存打印</text>
+  <!-- 2-4: ota-agent -->
+  <rect x="604" y="292" width="176" height="86" rx="10" fill="#fff" stroke="#f6e05e" stroke-width="1.5" filter="url(#card-shadow)"/>
+  <text x="692" y="318" text-anchor="middle" font-size="20">📦</text>
+  <text x="692" y="336" text-anchor="middle" font-size="12" font-weight="600" fill="#2d3748">ota-agent</text>
+  <text x="692" y="351" text-anchor="middle" font-size="9" fill="#718096">签名包校验 · A/B rootfs</text>
+  <text x="692" y="364" text-anchor="middle" font-size="9" fill="#718096">失败回滚 · 不经用户 apt</text>
 
-  <!-- 2-5: Cache -->
-  <rect x="644" y="276" width="140" height="74" rx="10" fill="#fff" stroke="#f6e05e" stroke-width="1.5" filter="url(#card-shadow)"/>
-  <text x="714" y="302" text-anchor="middle" font-size="20">💾</text>
-  <text x="714" y="320" text-anchor="middle" font-size="12" font-weight="600" fill="#2d3748">本地内容缓存</text>
-  <text x="714" y="335" text-anchor="middle" font-size="9" fill="#718096">预存100+模板</text>
-  <text x="714" y="347" text-anchor="middle" font-size="9" fill="#718096">离线可用内容</text>
-
-  <!-- System info bar -->
-  <rect x="52" y="360" width="733" height="28" rx="8" fill="#f7fafc" stroke="#e2e8f0" stroke-width="1"/>
-  <text x="420" y="379" text-anchor="middle" font-size="11" fill="#718096">主控：全志V3s | 语音：启英泰伦CI130x + 讯飞AIUI | 打印：ZINK | 系统：RTOS/Linux</text>
+  <!-- OS / systemd strip -->
+  <rect x="52" y="388" width="733" height="56" rx="8" fill="#f7fafc" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="420" y="408" text-anchor="middle" font-size="10" font-weight="600" fill="#4a5568">系统与用户态基线</text>
+  <text x="420" y="424" text-anchor="middle" font-size="9" fill="#718096">systemd 托管上述服务 · 内核 + USB 栈来自 SoC BSP · 网络 NetworkManager / systemd-networkd（择一固化）</text>
+  <text x="420" y="436" text-anchor="middle" font-size="9" fill="#718096">工程样机：Raspberry Pi OS 或板厂 Debian/Ubuntu；量产：裁剪同源包命名空间（与 demo-kit-bom 冻结对齐）</text>
 
   <!-- Arrow: Layer 2 to Layer 3 -->
-  <line x1="420" y1="440" x2="420" y2="462" stroke="#a0aec0" stroke-width="2"/>
-  <polygon points="414,460 420,470 426,460" fill="#a0aec0"/>
-  <rect x="335" y="446" width="170" height="18" rx="9" fill="#fff" stroke="#e2e8f0" stroke-width="1"/>
-  <text x="420" y="459" text-anchor="middle" font-size="10" fill="#718096">HTTP/HTTPS请求（WiFi/4G）</text>
+  <line x1="420" y1="458" x2="420" y2="478" stroke="#a0aec0" stroke-width="2"/>
+  <polygon points="414,476 420,486 426,476" fill="#a0aec0"/>
+  <rect x="310" y="462" width="220" height="18" rx="9" fill="#fff" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="420" y="475" text-anchor="middle" font-size="10" fill="#718096">HTTPS / MQTT（WiFi；可选 4G 模组）</text>
 
   <!-- ============ Layer 3: Cloud Services ============ -->
-  <rect x="30" y="478" width="780" height="200" rx="12" fill="#f0fff4" stroke="#9ae6b4" stroke-width="1.5" filter="url(#shadow)"/>
-  <text x="48" y="502" font-size="13" font-weight="700" fill="#276749">三、云端服务 (Cloud Services)</text>
+  <rect x="30" y="494" width="780" height="200" rx="12" fill="#f0fff4" stroke="#9ae6b4" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="48" y="518" font-size="13" font-weight="700" fill="#276749">三、云端服务 (Cloud Services)</text>
 
   <!-- 3-1: ASR -->
-  <rect x="52" y="514" width="175" height="80" rx="10" fill="#fff" stroke="#9ae6b4" stroke-width="1.5" filter="url(#card-shadow)"/>
-  <text x="139" y="540" text-anchor="middle" font-size="20">🎯</text>
-  <text x="139" y="558" text-anchor="middle" font-size="12" font-weight="600" fill="#2d3748">语音识别 (ASR)</text>
-  <text x="139" y="573" text-anchor="middle" font-size="9" fill="#718096">讯飞AIUI</text>
-  <text x="139" y="585" text-anchor="middle" font-size="9" fill="#718096">儿童语音识别·NLU理解</text>
+  <rect x="52" y="530" width="175" height="80" rx="10" fill="#fff" stroke="#9ae6b4" stroke-width="1.5" filter="url(#card-shadow)"/>
+  <text x="139" y="556" text-anchor="middle" font-size="20">🎯</text>
+  <text x="139" y="574" text-anchor="middle" font-size="12" font-weight="600" fill="#2d3748">语音识别 (ASR)</text>
+  <text x="139" y="589" text-anchor="middle" font-size="9" fill="#718096">讯飞 AIUI 等</text>
+  <text x="139" y="601" text-anchor="middle" font-size="9" fill="#718096">儿童语音 · NLU</text>
 
   <!-- 3-2: LLM -->
-  <rect x="235" y="514" width="175" height="80" rx="10" fill="#fff" stroke="#9ae6b4" stroke-width="1.5" filter="url(#card-shadow)"/>
-  <text x="322" y="540" text-anchor="middle" font-size="20">🧠</text>
-  <text x="322" y="558" text-anchor="middle" font-size="12" font-weight="600" fill="#2d3748">大语言模型 (LLM)</text>
-  <text x="322" y="573" text-anchor="middle" font-size="9" fill="#718096">意图理解·对话管理</text>
-  <text x="322" y="585" text-anchor="middle" font-size="9" fill="#718096">文生图Prompt生成</text>
+  <rect x="235" y="530" width="175" height="80" rx="10" fill="#fff" stroke="#9ae6b4" stroke-width="1.5" filter="url(#card-shadow)"/>
+  <text x="322" y="556" text-anchor="middle" font-size="20">🧠</text>
+  <text x="322" y="574" text-anchor="middle" font-size="12" font-weight="600" fill="#2d3748">大语言模型 (LLM)</text>
+  <text x="322" y="589" text-anchor="middle" font-size="9" fill="#718096">意图 · 对话管理</text>
+  <text x="322" y="601" text-anchor="middle" font-size="9" fill="#718096">文生图 Prompt</text>
 
   <!-- 3-3: Image Gen -->
-  <rect x="418" y="514" width="175" height="80" rx="10" fill="#fff" stroke="#9ae6b4" stroke-width="1.5" filter="url(#card-shadow)"/>
-  <text x="505" y="540" text-anchor="middle" font-size="20">🎨</text>
-  <text x="505" y="558" text-anchor="middle" font-size="12" font-weight="600" fill="#2d3748">文生图模型</text>
-  <text x="505" y="573" text-anchor="middle" font-size="9" fill="#718096">通义万相API</text>
-  <text x="505" y="585" text-anchor="middle" font-size="9" fill="#718096">涂色页/换装图生成</text>
+  <rect x="418" y="530" width="175" height="80" rx="10" fill="#fff" stroke="#9ae6b4" stroke-width="1.5" filter="url(#card-shadow)"/>
+  <text x="505" y="556" text-anchor="middle" font-size="20">🎨</text>
+  <text x="505" y="574" text-anchor="middle" font-size="12" font-weight="600" fill="#2d3748">文生图</text>
+  <text x="505" y="589" text-anchor="middle" font-size="9" fill="#718096">通义万相等 API</text>
+  <text x="505" y="601" text-anchor="middle" font-size="9" fill="#718096">线稿 / 淡彩策略</text>
 
   <!-- 3-4: Safety -->
-  <rect x="601" y="514" width="185" height="80" rx="10" fill="#fff" stroke="#9ae6b4" stroke-width="1.5" filter="url(#card-shadow)"/>
-  <text x="693" y="540" text-anchor="middle" font-size="20">🛡️</text>
-  <text x="693" y="558" text-anchor="middle" font-size="12" font-weight="600" fill="#2d3748">内容安全审核</text>
-  <text x="693" y="573" text-anchor="middle" font-size="9" fill="#718096">双重审核</text>
-  <text x="693" y="585" text-anchor="middle" font-size="9" fill="#718096">云端深度+端侧基础过滤</text>
+  <rect x="601" y="530" width="185" height="80" rx="10" fill="#fff" stroke="#9ae6b4" stroke-width="1.5" filter="url(#card-shadow)"/>
+  <text x="693" y="556" text-anchor="middle" font-size="20">🛡️</text>
+  <text x="693" y="574" text-anchor="middle" font-size="12" font-weight="600" fill="#2d3748">内容安全审核</text>
+  <text x="693" y="589" text-anchor="middle" font-size="9" fill="#718096">云端深度审核</text>
+  <text x="693" y="601" text-anchor="middle" font-size="9" fill="#718096">端侧基础过滤 + 家长策略</text>
 
   <!-- Second row of cloud -->
-  <!-- 3-5: User Center -->
-  <rect x="52" y="604" width="225" height="62" rx="10" fill="#fff" stroke="#9ae6b4" stroke-width="1.5" filter="url(#card-shadow)"/>
-  <text x="164" y="630" text-anchor="middle" font-size="20">👤</text>
-  <text x="164" y="648" text-anchor="middle" font-size="12" font-weight="600" fill="#2d3748">用户中心</text>
-  <text x="164" y="662" text-anchor="middle" font-size="9" fill="#718096">设备绑定·使用记录·家长APP同步</text>
+  <rect x="52" y="620" width="225" height="62" rx="10" fill="#fff" stroke="#9ae6b4" stroke-width="1.5" filter="url(#card-shadow)"/>
+  <text x="164" y="646" text-anchor="middle" font-size="20">👤</text>
+  <text x="164" y="664" text-anchor="middle" font-size="12" font-weight="600" fill="#2d3748">用户中心</text>
+  <text x="164" y="678" text-anchor="middle" font-size="9" fill="#718096">设备绑定 · 使用记录 · 家长端同步</text>
 
-  <!-- 3-6: Admin -->
-  <rect x="287" y="604" width="225" height="62" rx="10" fill="#fff" stroke="#9ae6b4" stroke-width="1.5" filter="url(#card-shadow)"/>
-  <text x="399" y="630" text-anchor="middle" font-size="20">📊</text>
-  <text x="399" y="648" text-anchor="middle" font-size="12" font-weight="600" fill="#2d3748">内容管理后台</text>
-  <text x="399" y="662" text-anchor="middle" font-size="9" fill="#718096">模板管理·内容审核·OTA升级</text>
+  <rect x="287" y="620" width="225" height="62" rx="10" fill="#fff" stroke="#9ae6b4" stroke-width="1.5" filter="url(#card-shadow)"/>
+  <text x="399" y="646" text-anchor="middle" font-size="20">📊</text>
+  <text x="399" y="664" text-anchor="middle" font-size="12" font-weight="600" fill="#2d3748">内容管理后台</text>
+  <text x="399" y="678" text-anchor="middle" font-size="9" fill="#718096">模板 · 审核 · 运营配置</text>
 
-  <!-- 3-7: Parent APP -->
-  <rect x="522" y="604" width="265" height="62" rx="10" fill="#fff" stroke="#9ae6b4" stroke-width="1.5" filter="url(#card-shadow)"/>
-  <text x="654" y="630" text-anchor="middle" font-size="20">📱</text>
-  <text x="654" y="648" text-anchor="middle" font-size="12" font-weight="600" fill="#2d3748">家长端APP/小程序</text>
-  <text x="654" y="662" text-anchor="middle" font-size="9" fill="#718096">内容授权·时长管控·打印历史查看</text>
+  <rect x="522" y="620" width="265" height="62" rx="10" fill="#fff" stroke="#9ae6b4" stroke-width="1.5" filter="url(#card-shadow)"/>
+  <text x="654" y="646" text-anchor="middle" font-size="20">📱</text>
+  <text x="654" y="664" text-anchor="middle" font-size="12" font-weight="600" fill="#2d3748">家长端 APP / 小程序</text>
+  <text x="654" y="678" text-anchor="middle" font-size="9" fill="#718096">授权 · 时长 · 打印历史</text>
 
   <!-- ============ Data Flow ============ -->
-  <rect x="30" y="698" width="780" height="54" rx="10" fill="#f7fafc" stroke="#cbd5e0" stroke-width="1" stroke-dasharray="6,3"/>
-  <text x="46" y="718" font-size="11" font-weight="600" fill="#4a5568">完整数据流：</text>
+  <rect x="30" y="714" width="780" height="54" rx="10" fill="#f7fafc" stroke="#cbd5e0" stroke-width="1" stroke-dasharray="6,3"/>
+  <text x="46" y="734" font-size="11" font-weight="600" fill="#4a5568">完整数据流（与端侧分层一致）：</text>
 
-  <!-- Flow steps -->
-  <text x="46" y="738" font-size="10" fill="#718096">① 儿童语音输入</text>
-  <text x="150" y="738" font-size="10" fill="#cbd5e0">→</text>
-  <text x="168" y="738" font-size="10" fill="#718096">② 设备唤醒+录音</text>
-  <text x="272" y="738" font-size="10" fill="#cbd5e0">→</text>
-  <text x="290" y="738" font-size="10" fill="#718096">③ 云端ASR识别</text>
-  <text x="394" y="738" font-size="10" fill="#cbd5e0">→</text>
-  <text x="412" y="738" font-size="10" fill="#718096">④ LLM生成Prompt</text>
-  <text x="516" y="738" font-size="10" fill="#cbd5e0">→</text>
-  <text x="534" y="738" font-size="10" fill="#718096">⑤ 通义万相出图</text>
-  <text x="638" y="738" font-size="10" fill="#cbd5e0">→</text>
-  <text x="656" y="738" font-size="10" fill="#718096">⑥ 安全审核→设备打印→孩子拿到涂色页</text>
+  <text x="46" y="754" font-size="10" fill="#718096">① 语音 / 按键</text>
+  <text x="118" y="754" font-size="10" fill="#cbd5e0">→</text>
+  <text x="132" y="754" font-size="10" fill="#718096">② edge-daemon 采集 / 唤醒协同</text>
+  <text x="292" y="754" font-size="10" fill="#cbd5e0">→</text>
+  <text x="306" y="754" font-size="10" fill="#718096">③ 云端 ASR / LLM / 生图</text>
+  <text x="442" y="754" font-size="10" fill="#cbd5e0">→</text>
+  <text x="456" y="754" font-size="10" fill="#718096">④ 审核 → 预览 URL / 任务下发</text>
+  <text x="612" y="754" font-size="10" fill="#cbd5e0">→</text>
+  <text x="626" y="754" font-size="10" fill="#718096">⑤ UI 确认 → IPC → CUPS 打 ZINK（A5 PRD）</text>
 
   <!-- ============ Specs ============ -->
-  <rect x="30" y="768" width="780" height="130" rx="12" fill="#fff" stroke="#e2e8f0" stroke-width="1" filter="url(#shadow)"/>
-  <text x="420" y="792" text-anchor="middle" font-size="14" font-weight="600" fill="#2d3748">硬件规格与成本</text>
+  <rect x="30" y="784" width="780" height="118" rx="12" fill="#fff" stroke="#e2e8f0" stroke-width="1" filter="url(#shadow)"/>
+  <text x="420" y="808" text-anchor="middle" font-size="14" font-weight="600" fill="#2d3748">硬件与介质（摘要）</text>
 
-  <!-- Spec table -->
-  <line x1="50" y1="804" x2="790" y2="804" stroke="#edf2f7" stroke-width="1"/>
+  <line x1="50" y1="818" x2="790" y2="818" stroke="#edf2f7" stroke-width="1"/>
 
-  <!-- Table header -->
-  <text x="60" y="822" font-size="11" font-weight="600" fill="#4a5568">组件</text>
-  <text x="200" y="822" font-size="11" font-weight="600" fill="#4a5568">型号</text>
-  <text x="420" y="822" font-size="11" font-weight="600" fill="#4a5568">规格</text>
-  <text x="580" y="822" font-size="11" font-weight="600" fill="#4a5568">成本</text>
-  <text x="680" y="822" font-size="11" font-weight="600" fill="#4a5568">供应商</text>
-  <line x1="50" y1="828" x2="790" y2="828" stroke="#edf2f7" stroke-width="1"/>
+  <text x="60" y="836" font-size="11" font-weight="600" fill="#4a5568">组件</text>
+  <text x="200" y="836" font-size="11" font-weight="600" fill="#4a5568">工程样机 / 方向</text>
+  <text x="420" y="836" font-size="11" font-weight="600" fill="#4a5568">与架构图对应关系</text>
+  <text x="640" y="836" font-size="11" font-weight="600" fill="#4a5568">说明</text>
+  <line x1="50" y1="842" x2="790" y2="842" stroke="#edf2f7" stroke-width="1"/>
 
-  <!-- Row 1 -->
-  <text x="60" y="845" font-size="10" fill="#2d3748">主控SoC</text>
-  <text x="200" y="845" font-size="10" fill="#718096">全志V3s</text>
-  <text x="420" y="845" font-size="10" fill="#718096">ARM Cortex-A7</text>
-  <text x="580" y="845" font-size="10" fill="#2d3748">¥35</text>
-  <text x="680" y="845" font-size="10" fill="#718096">华强北</text>
+  <text x="60" y="860" font-size="10" fill="#2d3748">主控 + OS</text>
+  <text x="200" y="860" font-size="10" fill="#718096">树莓派 5 / RK3588 等</text>
+  <text x="420" y="860" font-size="10" fill="#718096">ARM64 · Debian 系用户态</text>
+  <text x="640" y="860" font-size="10" fill="#718096">详见 demo-kit-bom</text>
 
-  <!-- Row 2 -->
-  <text x="60" y="862" font-size="10" fill="#2d3748">打印模组</text>
-  <text x="200" y="862" font-size="10" fill="#718096">ZINK</text>
-  <text x="420" y="862" font-size="10" fill="#718096">203dpi</text>
-  <text x="580" y="862" font-size="10" fill="#2d3748">¥45</text>
-  <text x="680" y="862" font-size="10" fill="#718096">凯胜诺/汉印</text>
+  <text x="60" y="876" font-size="10" fill="#2d3748">打印</text>
+  <text x="200" y="876" font-size="10" fill="#718096">ZINK OEM 机芯</text>
+  <text x="420" y="876" font-size="10" fill="#718096">USB / IPP → CUPS → edge-daemon</text>
+  <text x="640" y="876" font-size="10" fill="#718096">物理出纸 PRD：ISO A5</text>
 
-  <!-- Row 3 -->
-  <text x="60" y="879" font-size="10" fill="#2d3748">语音方案</text>
-  <text x="200" y="879" font-size="10" fill="#718096">启英+讯飞</text>
-  <text x="420" y="879" font-size="10" fill="#718096">离线唤醒+在线ASR</text>
-  <text x="580" y="879" font-size="10" fill="#2d3748">¥35</text>
-  <text x="680" y="879" font-size="10" fill="#718096">成都/合肥</text>
+  <text x="60" y="892" font-size="10" fill="#2d3748">语音</text>
+  <text x="200" y="892" font-size="10" fill="#718096">麦阵 + 可选唤醒芯片</text>
+  <text x="420" y="892" font-size="10" fill="#718096">经 daemon 上传 ASR</text>
+  <text x="640" y="892" font-size="10" fill="#718096">供应商以 BOM 为准</text>
 
-  <!-- Total -->
-  <line x1="50" y1="886" x2="790" y2="886" stroke="#e2e8f0" stroke-width="1"/>
-  <text x="60" y="900" font-size="11" font-weight="600" fill="#2d3748">整机成本合计（含开模分摊+组装）</text>
-  <text x="580" y="900" font-size="12" font-weight="700" fill="#e53e3e">约 ¥268/台</text>
+  <line x1="50" y1="898" x2="790" y2="898" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="60" y="912" font-size="10" fill="#718096">整机成本与详细料号不在此图维护；以项目计划书 §6 与 demo-kit-bom 滚动更新为准。</text>
 
   <!-- Footer -->
-  <text x="420" y="940" text-anchor="middle" font-size="10" fill="#a0aec0">技术支持：讯飞AIUI · 通义万相 · 启英泰伦 · 全志V3s</text>
-
-  <!-- Bottom decorative line -->
-  <line x1="280" y1="952" x2="560" y2="952" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="420" y="948" text-anchor="middle" font-size="10" fill="#a0aec0">端侧方案：Debian/Ubuntu 嵌入式裁剪 · 云端：ASR / LLM / 生图 / 审核（可替换供应商）</text>
+  <line x1="280" y1="960" x2="560" y2="960" stroke="#e2e8f0" stroke-width="1"/>
 </svg>
