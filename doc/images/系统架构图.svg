@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 980" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif">
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 980" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif">
   <defs>
     <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#f0f4f8;stop-opacity:1"/>
@@ -50,7 +50,7 @@
   <!-- ============ Layer 2: Edge Device (Debian/Ubuntu stack) ============ -->
   <rect x="30" y="240" width="780" height="218" rx="12" fill="#fffff0" stroke="#f6e05e" stroke-width="1.5" filter="url(#shadow)"/>
   <text x="48" y="264" font-size="13" font-weight="700" fill="#975a16">二、设备端 (Edge) — Debian / Ubuntu 嵌入式裁剪</text>
-  <text x="48" y="280" font-size="10" fill="#a08060">量产 OS 已定稿：同源 Debian 系 rootfs · 只读根 + overlay（或 A/B）· manifest 白名单 · 签名 OTA（详见 ../端侧软件与工程样机技术分析.md）</text>
+  <text x="48" y="280" font-size="10" fill="#a08060">量产 OS 已定稿：同源 Debian 系 rootfs · 只读根 + overlay（或 A/B）· manifest 白名单 · 签名 OTA（详见 ../2. 端侧软件与工程样机技术分析.md）</text>
 
   <!-- 2-1: UI -->
   <rect x="52" y="292" width="176" height="86" rx="10" fill="#fff" stroke="#f6e05e" stroke-width="1.5" filter="url(#card-shadow)"/>
@@ -182,7 +182,7 @@
   <text x="640" y="892" font-size="10" fill="#718096">供应商以 BOM 为准</text>
 
   <line x1="50" y1="898" x2="790" y2="898" stroke="#e2e8f0" stroke-width="1"/>
-  <text x="60" y="912" font-size="10" fill="#718096">整机成本与详细料号不在此图维护；以项目计划书.md §6 与 ../端侧软件与工程样机技术分析.md 滚动更新为准。</text>
+  <text x="60" y="912" font-size="10" fill="#718096">整机成本与详细料号不在此图维护；以 1. 项目计划书.md §6 与 ../2. 端侧软件与工程样机技术分析.md 滚动更新为准。</text>
 
   <!-- Footer -->
   <text x="420" y="948" text-anchor="middle" font-size="10" fill="#a0aec0">端侧方案：Debian/Ubuntu 嵌入式裁剪 · 云端：ASR / LLM / 生图 / 审核（可替换供应商）</text>
