@@ -1,9 +1,11 @@
 openapi: 3.0.3
 info:
   title: fancy-print device channel (MVP)
-  version: 0.2.0
+  version: 0.2.7
   description: >
-    Aligned with doc/4 §2.4.1 / §3.1. Implemented in `cloud/apps/device-api` (memory stub + JWT + optional MQTT).
+    Aligned with doc/4 §2.4.1 / §2.4.3 / §3.1 / §5. Optional vendor HTTP: `ASR_HTTP_URL`,
+    `IMAGE_GEN_HTTP_URL`, S3 presign via `S3_PREVIEW_BUCKET`+`AWS_REGION`. mTLS trust headers:
+    `MTLS_HEADER_TRUST`, `POST /v1/auth/mtls`. MQTT: `MQTT_URL`, `MQTT_SUBSCRIBE_TELEMETRY`.
 servers:
   - url: http://127.0.0.1:3001
     description: device-api
@@ -13,10 +15,12 @@ tags:
   - name: auth
   - name: jobs
   - name: policy
+  - name: devices
 paths:
   /v1/auth/device:
     post:
       tags: [auth]
+      security: []
       summary: Exchange device_id + device_secret for tokens
       requestBody:
         required: true
@@ -34,6 +38,7 @@ paths:
   /v1/auth/token:
     post:
       tags: [auth]
+      security: []
       summary: Refresh device access token
       requestBody:
         required: true
@@ -47,9 +52,30 @@ paths:
       responses:
         "200":
           description: New tokens
+  /v1/auth/mtls:
+    post:
+      tags: [auth]
+      security: []
+      summary: >-
+        Exchange JWT when gateway/Nginx terminates mTLS and sets `x-device-id-from-mtls`.
+        Requires `MTLS_HEADER_TRUST=1` on device-api and client IP in `TRUSTED_PROXY_IPS`.
+      responses:
+        "200":
+          description: access + refresh tokens
+        "400":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "403":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "404":
+          description: Endpoint disabled when MTLS_HEADER_TRUST is not set
   /v1/devices/sessions:
     post:
       tags: [auth]
+      security: []
       summary: Alias of auth/device (doc §2.4.1)
       requestBody:
         required: true
@@ -64,6 +90,25 @@ paths:
       responses:
         "200":
           description: Tokens
+  /v1/devices/telemetry:
+    post:
+      tags: [devices]
+      summary: >-
+        HTTPS stub for device→cloud telemetry (doc §2.4.3). Complements MQTT topic
+        `devices/{device_id}/telemetry`; must not carry raw child audio; 204 No Content.
+      security: [{ deviceBearer: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DeviceTelemetryBody" }
+      responses:
+        "204":
+          description: Accepted (no body)
+        "400":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
   /v1/policy:
     get:
       tags: [policy]
@@ -116,11 +161,23 @@ paths:
               type: object
               required: [content_mode]
               properties:
-                content_mode: { type: string }
+                content_mode: { $ref: "#/components/schemas/ContentMode" }
                 child_profile_id: { type: string }
       responses:
         "201":
           description: Job created
+          headers:
+            Location:
+              description: Canonical path of the new job (`/v1/jobs/{job_id}`)
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Job" }
+        "400":
+          description: Invalid body or content_mode not allowed by policy
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
   /v1/jobs/{job_id}:
     get:
       tags: [jobs]
@@ -134,6 +191,14 @@ paths:
       responses:
         "200":
           description: Job record
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Job" }
+        "404":
+          description: Unknown job
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
   /v1/jobs/{job_id}/audio:
     post:
       tags: [jobs]
@@ -143,9 +208,82 @@ paths:
           name: job_id
           required: true
           schema: { type: string, format: uuid }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                audio_base64:
+                  type: string
+                  description: >-
+                    Optional base64 audio; capped server-side. Passed to `ASR_HTTP_URL` when set.
       responses:
         "200":
           description: Audio phase closed (stub)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Job" }
+        "404":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "409":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "502":
+          description: ASR HTTP upstream error (when ASR_HTTP_URL is set)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "503":
+          description: ASR HTTP upstream unreachable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /v1/jobs/{job_id}/chunks:
+    post:
+      tags: [jobs]
+      summary: >-
+        Chunk upload stub (doc §2.4.1). No audio bytes stored. Empty body or `{final:true}` closes
+        like POST .../audio. With `seq` + `final`, `seq` must strictly increase; duplicate seq is idempotent.
+      security: [{ deviceBearer: [] }]
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                seq:
+                  type: integer
+                  minimum: 0
+                  description: Monotonic chunk index; each new value must be greater than the last accepted
+                final:
+                  type: boolean
+                  description: When true (with valid seq), or alone / empty body, closes upload → audio_received
+      responses:
+        "200":
+          description: Job after chunk or after close
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Job" }
+        "400":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "409":
+          description: Invalid job state for chunking
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
   /v1/jobs/{job_id}/artifact:
     get:
       tags: [jobs]
@@ -159,8 +297,15 @@ paths:
       responses:
         "302":
           description: Location set to preview URL
+        "404":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
         "409":
           description: Preview not ready
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
   /v1/jobs/{job_id}/print-ack:
     post:
       tags: [jobs]
@@ -177,6 +322,21 @@ paths:
       responses:
         "200":
           description: Ack accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PrintAckResponse" }
+        "400":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "404":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "409":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
 components:
   securitySchemes:
     deviceBearer:
@@ -184,6 +344,28 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    DeviceTelemetryBody:
+      type: object
+      description: >-
+        Sanitized summary only. Forbidden key names include audio/recording/wav/pcm/transcript_raw
+        (see server validation).
+      properties:
+        firmware_version:
+          type: string
+          maxLength: 64
+        rssi_dbm:
+          type: number
+        uptime_sec:
+          type: integer
+          minimum: 0
+    PrintAckResponse:
+      type: object
+      required: [job_id, accepted, accepted_at, idempotent_replay]
+      properties:
+        job_id: { type: string }
+        accepted: { type: boolean }
+        accepted_at: { type: string, format: date-time }
+        idempotent_replay: { type: boolean }
     ApiError:
       type: object
       required: [code, message]
@@ -191,3 +373,43 @@ components:
         code: { type: string }
         message: { type: string }
         details: {}
+    ContentMode:
+      type: string
+      description: Must appear in GET /v1/policy `content_modes_allowed`
+      enum:
+        - coloring_quiet_book
+        - paper_craft
+        - dress_up
+    Job:
+      type: object
+      required:
+        - job_id
+        - device_id
+        - content_mode
+        - state
+        - created_at
+        - updated_at
+      properties:
+        job_id: { type: string, format: uuid }
+        device_id: { type: string }
+        content_mode: { $ref: "#/components/schemas/ContentMode" }
+        child_profile_id: { type: string, nullable: true }
+        policy_version: { type: integer, nullable: true }
+        state:
+          type: string
+          description: Stub pipeline state
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        transcript: { type: string, nullable: true }
+        chunks_max_seq:
+          type: integer
+          nullable: true
+          description: Present while chunking in `created` state (stub)
+        audio_base64:
+          type: string
+          nullable: true
+          description: Present when supplied on POST .../audio (capped)
+        preview_url: { type: string, nullable: true }
+        preview_url_expires_at: { type: string, format: date-time, nullable: true }
+        error_code: { type: string, nullable: true }
+        print_ack_at: { type: string, format: date-time, nullable: true }

@@ -3,9 +3,13 @@ import {
   Controller,
   Get,
   Headers,
+  HttpCode,
+  HttpStatus,
   Param,
   Post,
+  Res,
 } from '@nestjs/common';
+import type { FastifyReply } from 'fastify';
 import { CurrentDevice } from '../common/current-device.decorator';
 import { JobsService } from './jobs.service';
 
@@ -14,22 +18,26 @@ export class JobsController {
   constructor(private readonly jobs: JobsService) {}
 
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   create(
+    @Res({ passthrough: true }) reply: FastifyReply,
     @CurrentDevice() dev: { device_id: string },
     @Headers('idempotency-key') idempotencyKey: string | undefined,
     @Body()
     body: { content_mode?: string; child_profile_id?: string },
   ) {
-    return this.jobs.createJob({
+    const job = this.jobs.createJob({
       content_mode: body.content_mode ?? '',
       device_id: dev.device_id,
       idempotencyKey: idempotencyKey?.trim() || undefined,
       child_profile_id: body.child_profile_id,
     });
+    reply.header('Location', `/v1/jobs/${job.job_id}`);
+    return job;
   }
 
   @Get(':jobId')
-  getOne(
+  async getOne(
     @Param('jobId') jobId: string,
     @CurrentDevice() dev: { device_id: string },
   ) {
@@ -40,8 +48,18 @@ export class JobsController {
   uploadAudio(
     @Param('jobId') jobId: string,
     @CurrentDevice() dev: { device_id: string },
+    @Body() body?: { audio_base64?: string },
   ) {
-    return this.jobs.attachAudio(jobId, dev.device_id);
+    return this.jobs.attachAudio(jobId, dev.device_id, body?.audio_base64);
+  }
+
+  @Post(':jobId/chunks')
+  uploadChunks(
+    @Param('jobId') jobId: string,
+    @CurrentDevice() dev: { device_id: string },
+    @Body() body?: { seq?: number; final?: boolean },
+  ) {
+    return this.jobs.uploadChunk(jobId, dev.device_id, body);
   }
 
   @Post(':jobId/print-ack')

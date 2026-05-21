@@ -24,9 +24,22 @@ async function bootstrap() {
   });
 
   const fastify = app.getHttpAdapter().getInstance();
-  fastify.addHook('onRequest', (req, _reply, done) => {
-    const id = (req.headers['x-request-id'] as string) || randomUUID();
+  fastify.addHook('onRequest', (req, reply, done) => {
+    const raw = req.headers['x-request-id'];
+    const id =
+      typeof raw === 'string' && raw.trim() ? raw.trim() : randomUUID();
     req.headers['x-request-id'] = id;
+    reply.header('x-request-id', id);
+    const tp =
+      typeof req.headers['traceparent'] === 'string'
+        ? req.headers['traceparent'].trim()
+        : undefined;
+    if (tp) reply.header('traceparent', tp);
+    const ts =
+      typeof req.headers['tracestate'] === 'string'
+        ? req.headers['tracestate'].trim()
+        : undefined;
+    if (ts) reply.header('tracestate', ts);
     done();
   });
   fastify.addHook('onResponse', (req, reply, done) => {

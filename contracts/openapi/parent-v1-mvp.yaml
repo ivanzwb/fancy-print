@@ -1,20 +1,26 @@
 openapi: 3.0.3
 info:
   title: fancy-print parent BFF (MVP stub)
-  version: 0.1.0
+  version: 0.2.0
   description: >
     Paths under `/v1/parent` per doc/4 §2.4.2. Implemented in `cloud/apps/parent-bff`.
-    Dev auth: `POST /v1/parent/auth/login` (not in product OIDC flow; replace with IdP).
+    Dev auth replaces product OIDC; bind / approve / reject require Idempotency-Key (stub replay).
 servers:
   - url: http://127.0.0.1:3002
     description: parent-bff direct
   - url: http://127.0.0.1:3000
     description: gateway
+tags:
+  - name: auth
+  - name: profile
+  - name: households
 paths:
   /v1/parent/auth/login:
     post:
+      tags: [auth]
       summary: Dev-only parent login (password from PARENT_DEV_PASSWORD)
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -26,10 +32,17 @@ paths:
       responses:
         "200":
           description: access + refresh tokens
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
   /v1/parent/auth/token:
     post:
+      tags: [auth]
       summary: Refresh parent access token
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -40,28 +53,222 @@ paths:
       responses:
         "200":
           description: New tokens
+        "401":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
   /v1/parent/me:
     get:
+      tags: [profile]
       security: [{ parentBearer: [] }]
       summary: Current parent profile
       responses:
         "200":
           description: Profile JSON
+        "401":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
   /v1/parent/households/{household_id}/devices:
     get:
+      tags: [households]
       security: [{ parentBearer: [] }]
       summary: List devices in household
       parameters:
+        - $ref: "#/components/parameters/householdId"
+      responses:
+        "200":
+          description: Device list stub
+        "403":
+          description: JWT household_id does not match path
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "401":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /v1/parent/households/{household_id}/devices/bind:
+    post:
+      tags: [households]
+      security: [{ parentBearer: [] }]
+      summary: Bind device (idempotent; stub)
+      parameters:
+        - $ref: "#/components/parameters/householdId"
+        - $ref: "#/components/parameters/idempotencyKeyRequired"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bind_code: { type: string }
+      responses:
+        "200":
+          description: Bound stub device
+        "400":
+          description: Missing Idempotency-Key
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "403":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /v1/parent/households/{household_id}/devices/{device_id}/unbind:
+    post:
+      tags: [households]
+      security: [{ parentBearer: [] }]
+      summary: Unbind device (stub)
+      parameters:
+        - $ref: "#/components/parameters/householdId"
         - in: path
-          name: household_id
+          name: device_id
           required: true
           schema: { type: string }
       responses:
         "200":
-          description: Device list stub
+          description: Unbound acknowledgement
+        "403":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /v1/parent/households/{household_id}/policy:
+    get:
+      tags: [households]
+      security: [{ parentBearer: [] }]
+      summary: Read household policy stub
+      parameters:
+        - $ref: "#/components/parameters/householdId"
+      responses:
+        "200":
+          description: Policy JSON
+        "403":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+    patch:
+      tags: [households]
+      security: [{ parentBearer: [] }]
+      summary: Update policy stub; 409 on expected_version mismatch (demo)
+      parameters:
+        - $ref: "#/components/parameters/householdId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expected_version: { type: integer }
+                remote_print_gate: { type: boolean }
+      responses:
+        "200":
+          description: Updated stub policy
+        "409":
+          description: Version conflict
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "403":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /v1/parent/households/{household_id}/jobs:
+    get:
+      tags: [households]
+      security: [{ parentBearer: [] }]
+      summary: Job timeline stub (empty list)
+      parameters:
+        - $ref: "#/components/parameters/householdId"
+      responses:
+        "200":
+          description: Paginated stub
+        "403":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /v1/parent/households/{household_id}/jobs/pending-approvals:
+    get:
+      tags: [households]
+      security: [{ parentBearer: [] }]
+      summary: Pending approvals stub
+      parameters:
+        - $ref: "#/components/parameters/householdId"
+      responses:
+        "200":
+          description: Empty list stub
+        "403":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /v1/parent/households/{household_id}/jobs/{job_id}/approve:
+    post:
+      tags: [households]
+      security: [{ parentBearer: [] }]
+      summary: Remote approve (idempotent; stub)
+      parameters:
+        - $ref: "#/components/parameters/householdId"
+        - in: path
+          name: job_id
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/idempotencyKeyRequired"
+      responses:
+        "200":
+          description: Approved stub
+        "400":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "403":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /v1/parent/households/{household_id}/jobs/{job_id}/reject:
+    post:
+      tags: [households]
+      security: [{ parentBearer: [] }]
+      summary: Remote reject (idempotent; stub)
+      parameters:
+        - $ref: "#/components/parameters/householdId"
+        - in: path
+          name: job_id
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/idempotencyKeyRequired"
+      responses:
+        "200":
+          description: Rejected stub
+        "400":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "403":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
 components:
+  parameters:
+    householdId:
+      in: path
+      name: household_id
+      required: true
+      schema: { type: string }
+    idempotencyKeyRequired:
+      in: header
+      name: Idempotency-Key
+      required: true
+      schema: { type: string }
   securitySchemes:
     parentBearer:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  schemas:
+    ApiError:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: {}

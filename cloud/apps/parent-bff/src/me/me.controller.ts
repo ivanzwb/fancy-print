@@ -1,10 +1,13 @@
-import { Controller, Get, Req } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
+import {
+  CurrentParent,
+  type ParentPrincipal,
+} from '../common/current-parent.decorator';
 
 @Controller()
 export class MeController {
   @Get('me')
-  me(@Req() req: { parent?: { sub: string; email: string; household_id: string } }) {
-    const p = req.parent!;
+  me(@CurrentParent() p: ParentPrincipal) {
     return {
       parent_id: p.sub,
       email: p.email,

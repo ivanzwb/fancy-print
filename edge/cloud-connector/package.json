@@ -1,0 +1,13 @@
+{
+  "name": "fancy-print-cloud-connector-tools",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Dev utilities: publish device telemetry over MQTT (real client)",
+  "type": "module",
+  "scripts": {
+    "telemetry:publish": "node scripts/publish-telemetry.mjs"
+  },
+  "dependencies": {
+    "mqtt": "^5.15.1"
+  }
+}

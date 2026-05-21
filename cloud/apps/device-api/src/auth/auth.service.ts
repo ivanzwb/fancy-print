@@ -21,6 +21,7 @@ export class AuthService {
     string,
     { device_id: string; exp: number }
   >();
+  private readonly mtlsAllow = new Set<string>();
 
   constructor() {
     this.accessSecret =
@@ -38,6 +39,45 @@ export class AuthService {
     } catch {
       this.credentials.set('fancy-print-dev', 'fancy-print-secret');
     }
+
+    const mtlsRaw = process.env.MTLS_ALLOWED_DEVICE_IDS_JSON?.trim();
+    if (mtlsRaw) {
+      try {
+        const arr = JSON.parse(mtlsRaw) as unknown[];
+        for (const x of arr) {
+          if (typeof x === 'string' && x.trim()) this.mtlsAllow.add(x.trim());
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  /** Gateway terminates mTLS and forwards `x-device-id-from-mtls` (see MTLS_HEADER_TRUST). */
+  exchangeFromTrustedGateway(deviceId: string): DeviceTokenResponse {
+    const id = deviceId.trim();
+    if (!id) {
+      throw new UnauthorizedException({
+        code: 'MISSING_DEVICE_ID',
+        message: 'device_id is empty',
+      });
+    }
+    if (!this.isMtlsDeviceAllowed(id)) {
+      throw new UnauthorizedException({
+        code: 'MTLS_DEVICE_NOT_ALLOWED',
+        message:
+          'device_id not allowed for mTLS exchange; set MTLS_ALLOWED_DEVICE_IDS_JSON or MTLS_TRUST_REGISTERED_DEVICES=1',
+      });
+    }
+    return this.issueTokens(id);
+  }
+
+  private isMtlsDeviceAllowed(deviceId: string): boolean {
+    if (this.mtlsAllow.has(deviceId)) return true;
+    if (process.env.MTLS_TRUST_REGISTERED_DEVICES === '1') {
+      return this.credentials.has(deviceId);
+    }
+    return false;
   }
 
   exchangeDeviceCredentials(
