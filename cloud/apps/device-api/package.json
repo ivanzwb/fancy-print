@@ -11,6 +11,7 @@
     "test:cov": "jest --coverage"
   },
   "dependencies": {
+    "@fancy-print/config": "*",
     "@aws-sdk/client-s3": "^3.758.0",
     "@aws-sdk/s3-request-presigner": "^3.758.0",
     "@nestjs/common": "^10.4.15",

@@ -5,6 +5,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import type { ImageGenAdapter, ImageGenAdapterInput } from './image-gen-adapter.interface';
+import { retryFetch } from '../vendor-http.service';
 
 const CREATE_PATH = '/api/v1/services/aigc/text2image/image-synthesis';
 const POLL_INTERVAL_MS = 500;
@@ -73,15 +74,19 @@ export class TongyiWanxiangImageGenAdapter implements ImageGenAdapter {
 
     let createRes: Response;
     try {
-      createRes = await fetch(createUrl, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(Math.min(60_000, timeoutMs)),
-      });
+      createRes = await retryFetch(
+        createUrl,
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(Math.min(60_000, timeoutMs)),
+        },
+        'WANX_CREATE',
+      );
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      this.logger.warn(`WANX create fetch failed: ${msg}`);
+      this.logger.warn(`WANX create fetch failed after retries: ${msg}`);
       throw new ServiceUnavailableException({
         code: 'WANX_CREATE_UNAVAILABLE',
         message: msg,
@@ -125,10 +130,14 @@ export class TongyiWanxiangImageGenAdapter implements ImageGenAdapter {
       await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
       let pollRes: Response;
       try {
-        pollRes = await fetch(pollUrl, {
-          headers: { Authorization: `Bearer ${apiKey}` },
-          signal: AbortSignal.timeout(30_000),
-        });
+        pollRes = await retryFetch(
+          pollUrl,
+          {
+            headers: { Authorization: `Bearer ${apiKey}` },
+            signal: AbortSignal.timeout(30_000),
+          },
+          'WANX_POLL',
+        );
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         throw new ServiceUnavailableException({

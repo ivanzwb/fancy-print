@@ -4,11 +4,14 @@ import { randomUUID } from 'node:crypto';
 import tls from 'node:tls';
 import { Registry, collectDefaultMetrics } from 'prom-client';
 import type { IncomingHttpHeaders } from 'node:http';
+import { parseBaseEnv } from '@fancy-print/config';
 import {
   loadGatewayHttpsOptions,
   loadMtlsSerialMap,
   normalizeCertSerial,
 } from './tls-config';
+
+parseBaseEnv(process.env); // fail-fast on missing critical env vars
 
 const parentBffUrl = process.env.PARENT_BFF_URL ?? 'http://127.0.0.1:3002';
 const deviceApiUrl = process.env.DEVICE_API_URL ?? 'http://127.0.0.1:3001';
