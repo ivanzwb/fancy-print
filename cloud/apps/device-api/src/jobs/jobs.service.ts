@@ -12,6 +12,7 @@ import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import type { JobRecord, JobState } from './job.types';
 import { JobStateStoreService } from './job-state-store.service';
+import { PipelineQueueService } from './pipeline-queue.service';
 import { VendorFacadeService } from '../adapters/vendor-facade.service';
 import { MqttService } from '../mqtt/mqtt.service';
 import { PolicyService } from '../policy/policy.service';
@@ -60,6 +61,7 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
     private readonly mqtt: MqttService,
     private readonly policy: PolicyService,
     private readonly vendorFacade: VendorFacadeService,
+    private readonly pipelineQueue: PipelineQueueService,
   ) {}
 
   onApplicationBootstrap() {
@@ -169,47 +171,75 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
     return cloneJobForApi({ ...job });
   }
 
+  /**
+   * Pure read-only job lookup. No side effects — does NOT advance the pipeline.
+   */
   async getJob(jobId: string, deviceId: string): Promise<JobRecord> {
-    let working = await this.requireJob(jobId);
-    this.assertDevice(working, deviceId);
+    const job = await this.requireJob(jobId);
+    this.assertDevice(job, deviceId);
+    return cloneJobForApi({ ...job });
+  }
 
-    if (this.store.usesRedis()) {
-      const token = await this.store.acquireJobAdvanceLock(jobId);
-      if (token) {
-        try {
-          const latest = await this.store.getJob(jobId);
-          if (!latest) {
-            throw new NotFoundException({
-              code: 'JOB_NOT_FOUND',
-              message: `Unknown job_id: ${jobId}`,
-            });
-          }
-          this.assertDevice(latest, deviceId);
-          await this.advancePipelineAsync(latest);
-          await this.store.setJob(latest);
-          working = latest;
-        } finally {
-          await this.store.releaseJobAdvanceLock(jobId, token);
-        }
-      } else {
-        const fresh = await this.store.getJob(jobId);
-        if (!fresh) {
-          throw new NotFoundException({
-            code: 'JOB_NOT_FOUND',
-            message: `Unknown job_id: ${jobId}`,
-          });
-        }
-        this.assertDevice(fresh, deviceId);
-        working = fresh;
-      }
-    } else {
-      await this.advancePipelineAsync(working);
-      await this.store.setJob(working);
+  /**
+   * Explicitly advance the pipeline one step.
+   *
+   * Returns immediately with the current job state. The actual vendor calls
+   * (ASR, moderation, image gen) run in the background via PipelineQueueService
+   * to avoid blocking the HTTP request thread.
+   *
+   * In Redis mode, uses SET NX lock to prevent concurrent advancement by multiple replicas.
+   */
+  async advanceJob(jobId: string, deviceId: string): Promise<JobRecord> {
+    const job = await this.requireJob(jobId);
+    this.assertDevice(job, deviceId);
+
+    // Terminal or idle states — no background work needed
+    if (
+      job.state === 'failed' ||
+      job.state === 'print_acknowledged' ||
+      job.state === 'preview_ready'
+    ) {
+      return cloneJobForApi({ ...job });
+    }
+    if (job.state === 'created') {
+      // No audio yet — nothing to advance
+      return cloneJobForApi({ ...job });
     }
 
-    this.mqtt.publishJobStatus(working);
-    this.schedulePersist();
-    return cloneJobForApi({ ...working });
+    // Enqueue background advancement and return current state immediately
+    this.pipelineQueue.enqueue(jobId, async () => {
+      try {
+        if (this.store.usesRedis()) {
+          const token = await this.store.acquireJobAdvanceLock(jobId);
+          if (token) {
+            try {
+              const latest = await this.store.getJob(jobId);
+              if (!latest) return;
+              this.assertDevice(latest, deviceId);
+              await this.advancePipelineAsync(latest);
+              await this.store.setJob(latest);
+              this.mqtt.publishJobStatus(latest);
+            } finally {
+              await this.store.releaseJobAdvanceLock(jobId, token);
+            }
+          }
+          // Lock not acquired — another replica is advancing, skip
+        } else {
+          const working = await this.requireJob(jobId);
+          await this.advancePipelineAsync(working);
+          await this.store.setJob(working);
+          this.mqtt.publishJobStatus(working);
+          this.schedulePersist();
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.error(
+          `Background advancement failed job_id=${jobId}: ${msg}`,
+        );
+      }
+    });
+
+    return cloneJobForApi({ ...job });
   }
 
   async getArtifactRedirectUrl(

@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import * as jwt from 'jsonwebtoken';
 import { randomBytes } from 'node:crypto';
 import { DeviceRegistryService } from '../devices/device-registry.service';
+import { RefreshTokenStoreService } from './refresh-token-store.service';
 
 const ACCESS_TTL_SEC = 900;
 const REFRESH_TTL_SEC = 7 * 24 * 3600;
@@ -17,13 +18,12 @@ export interface DeviceTokenResponse {
 export class AuthService {
   private readonly accessSecret: string;
   private readonly refreshSecret: string;
-  private readonly refreshIndex = new Map<
-    string,
-    { device_id: string; exp: number }
-  >();
   private readonly mtlsAllow = new Set<string>();
 
-  constructor(private readonly registry: DeviceRegistryService) {
+  constructor(
+    private readonly registry: DeviceRegistryService,
+    private readonly refreshStore: RefreshTokenStoreService,
+  ) {
     this.accessSecret =
       process.env.DEVICE_JWT_ACCESS_SECRET ?? 'dev-device-access-secret';
     this.refreshSecret =
@@ -43,7 +43,7 @@ export class AuthService {
   }
 
   /** Gateway terminates mTLS and forwards `x-device-id-from-mtls` (see MTLS_HEADER_TRUST). */
-  exchangeFromTrustedGateway(deviceId: string): DeviceTokenResponse {
+  async exchangeFromTrustedGateway(deviceId: string): Promise<DeviceTokenResponse> {
     const id = deviceId.trim();
     if (!id) {
       throw new UnauthorizedException({
@@ -69,10 +69,10 @@ export class AuthService {
     return false;
   }
 
-  exchangeDeviceCredentials(
+  async exchangeDeviceCredentials(
     deviceId: string,
     deviceSecret: string,
-  ): DeviceTokenResponse {
+  ): Promise<DeviceTokenResponse> {
     if (!this.registry.validate(deviceId, deviceSecret)) {
       throw new UnauthorizedException({
         code: 'DEVICE_AUTH_FAILED',
@@ -82,12 +82,16 @@ export class AuthService {
     return this.issueTokens(deviceId);
   }
 
-  refreshAccessToken(refreshToken: string): DeviceTokenResponse {
+  async refreshAccessToken(refreshToken: string): Promise<DeviceTokenResponse> {
     let payload: jwt.JwtPayload;
+    let jti: string;
+    let sub: string;
     try {
       payload = jwt.verify(refreshToken, this.refreshSecret, {
         algorithms: ['HS256'],
       }) as jwt.JwtPayload;
+      jti = String(payload.jti);
+      sub = String(payload.sub);
     } catch {
       throw new UnauthorizedException({
         code: 'INVALID_REFRESH_TOKEN',
@@ -100,14 +104,14 @@ export class AuthService {
         message: 'Malformed refresh token',
       });
     }
-    const row = this.refreshIndex.get(String(payload.jti));
-    if (!row || row.device_id !== payload.sub) {
+    const row = await this.refreshStore.get(jti);
+    if (!row || row.device_id !== sub) {
       throw new UnauthorizedException({
         code: 'INVALID_REFRESH_TOKEN',
         message: 'Refresh token revoked or unknown',
       });
     }
-    return this.issueTokens(payload.sub);
+    return this.issueTokens(sub);
   }
 
   verifyAccessToken(authorization?: string): { device_id: string } {
@@ -138,7 +142,7 @@ export class AuthService {
     }
   }
 
-  private issueTokens(deviceId: string): DeviceTokenResponse {
+  private async issueTokens(deviceId: string): Promise<DeviceTokenResponse> {
     const access = jwt.sign(
       { typ: 'device', sub: deviceId },
       this.accessSecret,
@@ -150,10 +154,14 @@ export class AuthService {
       this.refreshSecret,
       { expiresIn: REFRESH_TTL_SEC },
     );
-    this.refreshIndex.set(jti, {
-      device_id: deviceId,
-      exp: Date.now() + REFRESH_TTL_SEC * 1000,
-    });
+    await this.refreshStore.set(
+      jti,
+      {
+        device_id: deviceId,
+        exp: Date.now() + REFRESH_TTL_SEC * 1000,
+      },
+      REFRESH_TTL_SEC,
+    );
     return {
       access_token: access,
       refresh_token: refresh,

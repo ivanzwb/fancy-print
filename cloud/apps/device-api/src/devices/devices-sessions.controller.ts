@@ -9,10 +9,10 @@ export class DevicesSessionsController {
 
   @Public()
   @Post('sessions')
-  sessions(
+  async sessions(
     @Body() body: { device_id?: string; device_secret?: string },
   ) {
-    return this.auth.exchangeDeviceCredentials(
+    return await this.auth.exchangeDeviceCredentials(
       body.device_id ?? '',
       body.device_secret ?? '',
     );

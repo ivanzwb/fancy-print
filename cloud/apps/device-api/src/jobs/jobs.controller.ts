@@ -41,7 +41,17 @@ export class JobsController {
     @Param('jobId') jobId: string,
     @CurrentDevice() dev: { device_id: string },
   ) {
+    // Pure read — no pipeline side effect (moved to POST .../advance)
     return await this.jobs.getJob(jobId, dev.device_id);
+  }
+
+  @Post(':jobId/advance')
+  @HttpCode(HttpStatus.OK)
+  async advance(
+    @Param('jobId') jobId: string,
+    @CurrentDevice() dev: { device_id: string },
+  ) {
+    return await this.jobs.advanceJob(jobId, dev.device_id);
   }
 
   @Post(':jobId/audio')

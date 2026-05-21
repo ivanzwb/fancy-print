@@ -6,11 +6,12 @@ import { JobStateStoreService } from './job-state-store.service';
 import { JobsArtifactController } from './jobs-artifact.controller';
 import { JobsController } from './jobs.controller';
 import { JobsService } from './jobs.service';
+import { PipelineQueueService } from './pipeline-queue.service';
 
 @Module({
   imports: [MqttModule, PolicyModule, AdaptersModule],
   controllers: [JobsArtifactController, JobsController],
-  providers: [JobStateStoreService, JobsService],
+  providers: [JobStateStoreService, JobsService, PipelineQueueService],
   exports: [JobsService],
 })
 export class JobsModule {}

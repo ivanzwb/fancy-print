@@ -12,13 +12,13 @@ export class ParentAuthController {
 
   @Public()
   @Post('login')
-  login(@Body() body: { email?: string; password?: string }) {
-    return this.auth.login(body.email ?? '', body.password ?? '');
+  async login(@Body() body: { email?: string; password?: string }) {
+    return await this.auth.login(body.email ?? '', body.password ?? '');
   }
 
   @Public()
   @Post('token')
-  token(@Body() body: { refresh_token?: string }) {
+  async token(@Body() body: { refresh_token?: string }) {
     const rt = body.refresh_token?.trim();
     if (!rt) {
       throw new BadRequestException({
@@ -26,6 +26,6 @@ export class ParentAuthController {
         message: 'refresh_token is required',
       });
     }
-    return this.auth.refresh(rt);
+    return await this.auth.refresh(rt);
   }
 }

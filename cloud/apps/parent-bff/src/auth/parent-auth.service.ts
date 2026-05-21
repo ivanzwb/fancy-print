@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import * as jwt from 'jsonwebtoken';
 import { randomBytes } from 'node:crypto';
+import { ParentRefreshTokenStoreService } from './refresh-token-store.service';
 
 const ACCESS_TTL_SEC = 3600;
 const REFRESH_TTL_SEC = 14 * 24 * 3600;
@@ -17,12 +18,10 @@ export class ParentAuthService {
   private readonly accessSecret: string;
   private readonly refreshSecret: string;
   private readonly devPassword: string;
-  private readonly refreshIndex = new Map<
-    string,
-    { sub: string; email: string; household_id: string }
-  >();
 
-  constructor() {
+  constructor(
+    private readonly refreshStore: ParentRefreshTokenStoreService,
+  ) {
     this.accessSecret =
       process.env.PARENT_JWT_ACCESS_SECRET ?? 'dev-parent-access-secret';
     this.refreshSecret =
@@ -30,7 +29,7 @@ export class ParentAuthService {
     this.devPassword = process.env.PARENT_DEV_PASSWORD ?? 'dev';
   }
 
-  login(email: string, password: string): ParentTokenResponse {
+  async login(email: string, password: string): Promise<ParentTokenResponse> {
     const em = email?.trim();
     if (!em || password !== this.devPassword) {
       throw new UnauthorizedException({
@@ -44,12 +43,16 @@ export class ParentAuthService {
     return this.issueTokens(sub, em, household_id);
   }
 
-  refresh(refreshToken: string): ParentTokenResponse {
+  async refresh(refreshToken: string): Promise<ParentTokenResponse> {
     let payload: jwt.JwtPayload;
+    let jti: string;
+    let sub: string;
     try {
       payload = jwt.verify(refreshToken, this.refreshSecret, {
         algorithms: ['HS256'],
       }) as jwt.JwtPayload;
+      jti = String(payload.jti);
+      sub = String(payload.sub);
     } catch {
       throw new UnauthorizedException({
         code: 'INVALID_REFRESH_TOKEN',
@@ -62,8 +65,8 @@ export class ParentAuthService {
         message: 'Malformed refresh token',
       });
     }
-    const row = this.refreshIndex.get(String(payload.jti));
-    if (!row || row.sub !== payload.sub) {
+    const row = await this.refreshStore.get(jti);
+    if (!row || row.sub !== sub) {
       throw new UnauthorizedException({
         code: 'INVALID_REFRESH_TOKEN',
         message: 'Refresh token revoked or unknown',
@@ -104,11 +107,11 @@ export class ParentAuthService {
     }
   }
 
-  private issueTokens(
+  private async issueTokens(
     sub: string,
     email: string,
     household_id: string,
-  ): ParentTokenResponse {
+  ): Promise<ParentTokenResponse> {
     const access = jwt.sign(
       { typ: 'parent', sub, email, household_id },
       this.accessSecret,
@@ -120,7 +123,7 @@ export class ParentAuthService {
       this.refreshSecret,
       { expiresIn: REFRESH_TTL_SEC },
     );
-    this.refreshIndex.set(jti, { sub, email, household_id });
+    await this.refreshStore.set(jti, { sub, email, household_id }, REFRESH_TTL_SEC);
     return {
       access_token: access,
       refresh_token: refresh,

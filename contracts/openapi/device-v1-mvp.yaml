@@ -183,7 +183,10 @@ paths:
   /v1/jobs/{job_id}:
     get:
       tags: [jobs]
-      summary: Poll job; advances pipeline one step per request after audio (ASR → text mod → image gen → preview)
+      summary: Read-only job status; no pipeline advancement side effect
+      description: >
+        Pure GET — returns the current job state without advancing the pipeline.
+        Use `POST /v1/jobs/{job_id}/advance` to explicitly advance one step.
       security: [{ deviceBearer: [] }]
       parameters:
         - in: path
@@ -192,12 +195,43 @@ paths:
           schema: { type: string, format: uuid }
       responses:
         "200":
-          description: Job record
+          description: Job record (current state, no advancement)
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Job" }
         "404":
           description: Unknown job
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /v1/jobs/{job_id}/advance:
+    post:
+      tags: [jobs]
+      summary: Explicitly advance the job pipeline one step (ASR → text moderation → image gen → preview)
+      description: >
+        Replaces the side-effect previously embedded in `GET /v1/jobs/{job_id}`.
+        In Redis mode, uses a distributed lock to prevent concurrent advancement
+        by multiple device-api replicas. Idempotent for terminal states (failed,
+        print_acknowledged, preview_ready) — returns current state unchanged.
+      security: [{ deviceBearer: [] }]
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Job record after advancement attempt
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Job" }
+        "404":
+          description: Unknown job
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "502":
+          description: Upstream error from ASR or image generation adapter
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiError" }

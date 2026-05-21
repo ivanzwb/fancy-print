@@ -4,6 +4,7 @@ import { DeviceRegistryService } from '../devices/device-registry.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { DeviceJwtAuthGuard } from './device-jwt-auth.guard';
+import { RefreshTokenStoreService } from './refresh-token-store.service';
 
 @Module({
   controllers: [AuthController],
@@ -11,6 +12,7 @@ import { DeviceJwtAuthGuard } from './device-jwt-auth.guard';
     DeviceRegistryService,
     AuthService,
     DeviceJwtAuthGuard,
+    RefreshTokenStoreService,
     { provide: APP_GUARD, useExisting: DeviceJwtAuthGuard },
   ],
   exports: [AuthService, DeviceJwtAuthGuard, DeviceRegistryService],

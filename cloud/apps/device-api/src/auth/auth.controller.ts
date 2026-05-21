@@ -18,7 +18,7 @@ export class AuthController {
 
   @Public()
   @Post('mtls')
-  mtlsExchange(@Req() req: FastifyRequest) {
+  async mtlsExchange(@Req() req: FastifyRequest) {
     if (process.env.MTLS_HEADER_TRUST !== '1') {
       throw new NotFoundException();
     }
@@ -36,16 +36,16 @@ export class AuthController {
         message: 'x-device-id-from-mtls header is required',
       });
     }
-    return this.auth.exchangeFromTrustedGateway(id);
+    return await this.auth.exchangeFromTrustedGateway(id);
   }
 
   /** Doc §2.4.1: device activation / session (naming mirrors OpenAPI evolution). */
   @Public()
   @Post('device')
-  deviceSession(
+  async deviceSession(
     @Body() body: { device_id?: string; device_secret?: string },
   ) {
-    return this.auth.exchangeDeviceCredentials(
+    return await this.auth.exchangeDeviceCredentials(
       body.device_id ?? '',
       body.device_secret ?? '',
     );
@@ -53,7 +53,7 @@ export class AuthController {
 
   @Public()
   @Post('token')
-  refresh(@Body() body: { refresh_token?: string }) {
+  async refresh(@Body() body: { refresh_token?: string }) {
     const rt = body.refresh_token?.trim();
     if (!rt) {
       throw new BadRequestException({
@@ -61,6 +61,6 @@ export class AuthController {
         message: 'refresh_token is required',
       });
     }
-    return this.auth.refreshAccessToken(rt);
+    return await this.auth.refreshAccessToken(rt);
   }
 }
