@@ -1,0 +1,43 @@
+asyncapi: 2.6.0
+info:
+  title: fancy-print cloud ↔ device (MQTT subset)
+  version: 0.1.0
+  description: >
+    Subset aligned with doc/4 §2.4.3. Broker URL is deployment-specific; payloads are JSON.
+defaultContentType: application/json
+servers:
+  production:
+    url: mqtts://mqtt.example.com
+    protocol: mqtts
+channels:
+  devices/{deviceId}/jobs/{jobId}/status:
+    description: Cloud pushes job state updates to the device
+    parameters:
+      deviceId:
+        schema: { type: string }
+      jobId:
+        schema: { type: string }
+    subscribe:
+      message:
+        payload:
+          type: object
+          properties:
+            state: { type: string }
+            preview_url: { type: string, nullable: true }
+            preview_url_ttl: { type: string, nullable: true }
+            error_code: { type: string, nullable: true }
+            policy_version: { type: integer, nullable: true }
+  devices/{deviceId}/policy:
+    description: Cloud pushes policy updates
+    parameters:
+      deviceId:
+        schema: { type: string }
+    subscribe:
+      message:
+        payload:
+          type: object
+          properties:
+            version: { type: integer }
+            hash: { type: string }
+            apply_after: { type: string, format: date-time }
+            body: { type: object, nullable: true }

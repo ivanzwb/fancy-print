@@ -4,8 +4,8 @@
 
 | 目录 | 用途 |
 |------|------|
-| `openapi/` | HTTP API（设备通道、家长 BFF）的 OpenAPI 描述或片段 |
-| `mqtt/` | MQTT topic 约定、消息 JSON Schema（若启用） |
+| `openapi/` | HTTP API：设备 [`openapi/device-v1-mvp.yaml`](openapi/device-v1-mvp.yaml)；家长 BFF [`openapi/parent-v1-mvp.yaml`](openapi/parent-v1-mvp.yaml) |
+| `mqtt/` | MQTT topic 约定与 **AsyncAPI 片段**（[`mqtt/README.md`](mqtt/README.md)、[`mqtt/device-asyncapi-stub.yaml`](mqtt/device-asyncapi-stub.yaml)） |
 
 与云端 **HTTP/MQTT 路径索引** 对齐演进见 [`../doc/4. 服务器端设计.md`](../doc/4. 服务器端设计.md) **§2.4**。
 

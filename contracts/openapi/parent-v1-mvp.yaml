@@ -1,0 +1,67 @@
+openapi: 3.0.3
+info:
+  title: fancy-print parent BFF (MVP stub)
+  version: 0.1.0
+  description: >
+    Paths under `/v1/parent` per doc/4 §2.4.2. Implemented in `cloud/apps/parent-bff`.
+    Dev auth: `POST /v1/parent/auth/login` (not in product OIDC flow; replace with IdP).
+servers:
+  - url: http://127.0.0.1:3002
+    description: parent-bff direct
+  - url: http://127.0.0.1:3000
+    description: gateway
+paths:
+  /v1/parent/auth/login:
+    post:
+      summary: Dev-only parent login (password from PARENT_DEV_PASSWORD)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        "200":
+          description: access + refresh tokens
+  /v1/parent/auth/token:
+    post:
+      summary: Refresh parent access token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token: { type: string }
+      responses:
+        "200":
+          description: New tokens
+  /v1/parent/me:
+    get:
+      security: [{ parentBearer: [] }]
+      summary: Current parent profile
+      responses:
+        "200":
+          description: Profile JSON
+  /v1/parent/households/{household_id}/devices:
+    get:
+      security: [{ parentBearer: [] }]
+      summary: List devices in household
+      parameters:
+        - in: path
+          name: household_id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Device list stub
+components:
+  securitySchemes:
+    parentBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

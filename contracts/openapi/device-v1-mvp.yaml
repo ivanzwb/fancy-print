@@ -1,0 +1,193 @@
+openapi: 3.0.3
+info:
+  title: fancy-print device channel (MVP)
+  version: 0.2.0
+  description: >
+    Aligned with doc/4 §2.4.1 / §3.1. Implemented in `cloud/apps/device-api` (memory stub + JWT + optional MQTT).
+servers:
+  - url: http://127.0.0.1:3001
+    description: device-api
+  - url: http://127.0.0.1:3000
+    description: gateway (`/v1` → device-api when path is not under `/v1/parent`)
+tags:
+  - name: auth
+  - name: jobs
+  - name: policy
+paths:
+  /v1/auth/device:
+    post:
+      tags: [auth]
+      summary: Exchange device_id + device_secret for tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_id, device_secret]
+              properties:
+                device_id: { type: string }
+                device_secret: { type: string }
+      responses:
+        "200":
+          description: access + refresh tokens
+  /v1/auth/token:
+    post:
+      tags: [auth]
+      summary: Refresh device access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token: { type: string }
+      responses:
+        "200":
+          description: New tokens
+  /v1/devices/sessions:
+    post:
+      tags: [auth]
+      summary: Alias of auth/device (doc §2.4.1)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_id, device_secret]
+              properties:
+                device_id: { type: string }
+                device_secret: { type: string }
+      responses:
+        "200":
+          description: Tokens
+  /v1/policy:
+    get:
+      tags: [policy]
+      summary: Device policy JSON (supports If-None-Match → 304)
+      security: [{ deviceBearer: [] }]
+      parameters:
+        - in: header
+          name: If-None-Match
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Policy body + ETag
+        "304":
+          description: Not modified
+  /v1/devices/{device_id}/policy:
+    get:
+      tags: [policy]
+      summary: Per-device policy URL (doc §2.4.1)
+      security: [{ deviceBearer: [] }]
+      parameters:
+        - in: path
+          name: device_id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: If-None-Match
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Policy + device_id echo
+        "304":
+          description: Not modified
+  /v1/jobs:
+    post:
+      tags: [jobs]
+      summary: Create job (device_id from Bearer; body content_mode)
+      security: [{ deviceBearer: [] }]
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content_mode]
+              properties:
+                content_mode: { type: string }
+                child_profile_id: { type: string }
+      responses:
+        "201":
+          description: Job created
+  /v1/jobs/{job_id}:
+    get:
+      tags: [jobs]
+      summary: Poll job; advances stub pipeline one step per request after audio upload
+      security: [{ deviceBearer: [] }]
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Job record
+  /v1/jobs/{job_id}/audio:
+    post:
+      tags: [jobs]
+      security: [{ deviceBearer: [] }]
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Audio phase closed (stub)
+  /v1/jobs/{job_id}/artifact:
+    get:
+      tags: [jobs]
+      summary: Redirect (302) to preview URL when ready
+      security: [{ deviceBearer: [] }]
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "302":
+          description: Location set to preview URL
+        "409":
+          description: Preview not ready
+  /v1/jobs/{job_id}/print-ack:
+    post:
+      tags: [jobs]
+      security: [{ deviceBearer: [] }]
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema: { type: string, format: uuid }
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Ack accepted
+components:
+  securitySchemes:
+    deviceBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ApiError:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: {}
