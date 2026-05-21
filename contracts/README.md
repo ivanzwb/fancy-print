@@ -7,4 +7,6 @@
 | `openapi/` | HTTP API（设备通道、家长 BFF）的 OpenAPI 描述或片段 |
 | `mqtt/` | MQTT topic 约定、消息 JSON Schema（若启用） |
 
+与云端 **HTTP/MQTT 路径索引** 对齐演进见 [`../doc/4. 服务器端设计.md`](../doc/4. 服务器端设计.md) **§2.4**。
+
 生成代码（可选）：在 `cloud/` 与 `apps/parent/` 中分别用 OpenAPI 工具生成 TypeScript / Dart 客户端类型。

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1664" height="720" viewBox="0 0 1664 720">
+  <title>奇想印印 家长端 UI 线框</title>
+  <defs>
+    <style type="text/css"><![CDATA[
+      .doc-title { font: 600 20px "Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif; fill: #1a1a1a; }
+      .doc-sub { font: 13px "Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif; fill: #555555; }
+      .bezel { fill: #252525; }
+      .screen { fill: #fafbfc; stroke: #e0e4e8; stroke-width: 1; }
+      .status-bar { fill: #eceff3; }
+      .scr-title { font: 600 15px "Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif; fill: #111827; }
+      .scr-body { font: 13px "Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif; fill: #374151; }
+      .scr-small { font: 11px "Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif; fill: #6b7280; }
+      .card { fill: #eff6ff; stroke: #3b82f6; stroke-width: 1.2; }
+      .card-warn { fill: #fffbeb; stroke: #f59e0b; stroke-width: 1.2; }
+      .feed-row { fill: #f9fafb; stroke: #e5e7eb; stroke-width: 1; }
+      .tabbar { fill: #f1f5f9; stroke: #cbd5e1; stroke-width: 1; }
+      .tab-active { font: 600 11px "Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif; fill: #0d9488; }
+      .tab-inact { font: 11px "Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif; fill: #64748b; }
+      .arrow { fill: none; stroke: #94a3b8; stroke-width: 2; marker-end: url(#pmk); }
+    ]]></style>
+    <filter id="pshadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.18"/>
+    </filter>
+    <marker id="pmk" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+  <text x="832" y="40" text-anchor="middle" class="doc-title">家长端 App UI 线框（竖屏 9:16 示意）</text>
+  <text x="832" y="64" text-anchor="middle" class="doc-sub">单屏宽高比 9:16；非像素定稿，高保真以设计交付为准</text>
+  <g transform="translate(40,96)">
+    <g filter="url(#pshadow)">
+      <rect class="bezel" x="0" y="0" width="288" height="512" rx="28" ry="28"/>
+      <rect class="screen" x="10" y="14" width="268" height="484" rx="18" ry="18"/>
+      <rect class="status-bar" x="10" y="14" width="268" height="42" rx="18" ry="18"/>
+      <text x="26" y="40" class="scr-small">9:41</text>
+      <text x="144" y="40" text-anchor="middle" class="scr-title">家长端</text>
+      <text x="262" y="40" text-anchor="end" class="scr-small">···</text>
+      <text x="24" y="78" class="scr-body">我的设备</text>
+      <rect class="card" x="18" y="88" width="252" height="72" rx="14" ry="14"/>
+      <text x="32" y="118" class="scr-body">客厅打印机</text>
+      <text x="32" y="140" class="scr-small">在线 · 固件 1.2.0 · ZINK 正常</text>
+      <rect class="card-warn" x="18" y="170" width="252" height="56" rx="12" ry="12"/>
+      <text x="32" y="198" class="scr-small">提醒：今日已拦截 1 次不当内容</text>
+      <rect class="tabbar" x="10" y="446" width="268" height="52"/>
+      <text x="48" y="478" text-anchor="middle" class="tab-active">首页</text>
+      <text x="120" y="478" text-anchor="middle" class="tab-inact">动态</text>
+      <text x="192" y="478" text-anchor="middle" class="tab-inact">策略</text>
+      <text x="236" y="478" text-anchor="middle" class="tab-inact">我的</text>
+    </g>
+    <path class="arrow" d="M 288,256 L 324,256"/>
+    <g transform="translate(324,0)" filter="url(#pshadow)">
+      <rect class="bezel" x="0" y="0" width="288" height="512" rx="28" ry="28"/>
+      <rect class="screen" x="10" y="14" width="268" height="484" rx="18" ry="18"/>
+      <rect class="status-bar" x="10" y="14" width="268" height="42" rx="18" ry="18"/>
+      <text x="144" y="40" text-anchor="middle" class="scr-title">创作动态</text>
+      <rect class="feed-row" x="18" y="72" width="252" height="88" rx="10" ry="10"/>
+      <text x="100" y="108" class="scr-body">缩略图 · 已打印</text>
+      <text x="100" y="132" class="scr-small">今天 15:20</text>
+      <rect class="feed-row" x="18" y="170" width="252" height="72" rx="10" ry="10"/>
+      <text x="32" y="206" class="scr-body">审核未通过（中性说明）</text>
+      <rect class="tabbar" x="10" y="446" width="268" height="52"/>
+      <text x="48" y="478" text-anchor="middle" class="tab-inact">首页</text>
+      <text x="120" y="478" text-anchor="middle" class="tab-active">动态</text>
+      <text x="192" y="478" text-anchor="middle" class="tab-inact">策略</text>
+      <text x="236" y="478" text-anchor="middle" class="tab-inact">我的</text>
+    </g>
+    <path class="arrow" d="M 612,256 L 648,256"/>
+    <g transform="translate(648,0)" filter="url(#pshadow)">
+      <rect class="bezel" x="0" y="0" width="288" height="512" rx="28" ry="28"/>
+      <rect class="screen" x="10" y="14" width="268" height="484" rx="18" ry="18"/>
+      <rect class="status-bar" x="10" y="14" width="268" height="42" rx="18" ry="18"/>
+      <text x="144" y="40" text-anchor="middle" class="scr-title">打印与内容策略</text>
+      <text x="24" y="84" class="scr-body">档位：机身自主 / 远程闸门 / 信任时段</text>
+      <text x="24" y="112" class="scr-small">每日张数上限、敏感主题开关</text>
+      <text x="24" y="148" class="scr-body">远程批准（档位 B）</text>
+      <rect class="feed-row" x="18" y="168" width="252" height="52" rx="10" ry="10"/>
+      <text x="32" y="200" class="scr-small">待你确认 · 1 条</text>
+      <rect class="tabbar" x="10" y="446" width="268" height="52"/>
+      <text x="48" y="478" text-anchor="middle" class="tab-inact">首页</text>
+      <text x="120" y="478" text-anchor="middle" class="tab-inact">动态</text>
+      <text x="192" y="478" text-anchor="middle" class="tab-active">策略</text>
+      <text x="236" y="478" text-anchor="middle" class="tab-inact">我的</text>
+    </g>
+    <path class="arrow" d="M 936,256 L 972,256"/>
+    <g transform="translate(972,0)" filter="url(#pshadow)">
+      <rect class="bezel" x="0" y="0" width="288" height="512" rx="28" ry="28"/>
+      <rect class="screen" x="10" y="14" width="268" height="484" rx="18" ry="18"/>
+      <rect class="status-bar" x="10" y="14" width="268" height="42" rx="18" ry="18"/>
+      <text x="144" y="40" text-anchor="middle" class="scr-title">添加设备</text>
+      <rect x="70" y="120" width="148" height="148" fill="#ffffff" stroke="#334155" stroke-width="2" stroke-dasharray="5 4" rx="8" ry="8"/>
+      <text x="144" y="200" text-anchor="middle" class="scr-small">扫码绑定</text>
+      <text x="144" y="300" text-anchor="middle" class="scr-body">或输入 6 位短码</text>
+      <text x="144" y="340" text-anchor="middle" class="scr-small">解绑在设备详情内操作</text>
+    </g>
+    <path class="arrow" d="M 1260,256 L 1296,256"/>
+    <g transform="translate(1296,0)" filter="url(#pshadow)">
+      <rect class="bezel" x="0" y="0" width="288" height="512" rx="28" ry="28"/>
+      <rect class="screen" x="10" y="14" width="268" height="484" rx="18" ry="18"/>
+      <rect class="status-bar" x="10" y="14" width="268" height="42" rx="18" ry="18"/>
+      <text x="144" y="40" text-anchor="middle" class="scr-title">我的</text>
+      <rect class="feed-row" x="18" y="72" width="252" height="44" rx="10" ry="10"/>
+      <text x="32" y="100" class="scr-body">账号与安全</text>
+      <rect class="feed-row" x="18" y="124" width="252" height="44" rx="10" ry="10"/>
+      <text x="32" y="152" class="scr-body">家庭与成员</text>
+      <rect class="feed-row" x="18" y="176" width="252" height="44" rx="10" ry="10"/>
+      <text x="32" y="204" class="scr-body">隐私与数据</text>
+      <rect class="feed-row" x="18" y="228" width="252" height="44" rx="10" ry="10"/>
+      <text x="32" y="256" class="scr-body">帮助与客服</text>
+      <rect class="feed-row" x="18" y="280" width="252" height="44" rx="10" ry="10"/>
+      <text x="32" y="308" class="scr-body">ZINK 纸购买入口</text>
+      <rect class="tabbar" x="10" y="446" width="268" height="52"/>
+      <text x="48" y="478" text-anchor="middle" class="tab-inact">首页</text>
+      <text x="120" y="478" text-anchor="middle" class="tab-inact">动态</text>
+      <text x="192" y="478" text-anchor="middle" class="tab-inact">策略</text>
+      <text x="236" y="478" text-anchor="middle" class="tab-active">我的</text>
+    </g>
+  </g>
+  <text x="832" y="668" text-anchor="middle" class="doc-sub">与云端家长 BFF 见《服务器端设计》§2.4.2；底栏 Tab 为示意，可按 PRD 调整</text>
+</svg>

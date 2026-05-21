@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1968" height="492" viewBox="0 0 1968 492">
+  <title>奇想印印 整机端 UI 线框（横屏布局）</title>
+  <defs>
+    <style type="text/css"><![CDATA[
+      .doc-title { font: 600 20px "Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif; fill: #1a1a1a; }
+      .doc-sub { font: 13px "Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif; fill: #555555; }
+      .bezel { fill: #252525; }
+      .screen { fill: #fafbfc; stroke: #e0e4e8; stroke-width: 1; }
+      .status-bar { fill: #eceff3; }
+      .scr-title { font: 600 15px "Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif; fill: #111827; }
+      .scr-body { font: 13px "Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif; fill: #374151; }
+      .scr-small { font: 11px "Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif; fill: #6b7280; }
+      .chip { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.5; }
+      .nav-on { fill: #fff7ed; stroke: #ea580c; stroke-width: 2; }
+      .btn-orange { fill: #ea580c; stroke: #c2410c; stroke-width: 1; }
+      .btn-orange-text { font: 600 14px "Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif; fill: #ffffff; }
+      .btn-print-busy { fill: #fdba74; stroke: #c2410c; stroke-width: 1; stroke-dasharray: 4 3; }
+      .btn-busy-text { font: 600 13px "Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif; fill: #7c2d12; }
+      .btn-secondary { fill: #f1f5f9; stroke: #94a3b8; stroke-width: 1; }
+      .btn-sec-text { font: 600 13px "Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif; fill: #334155; }
+      .preview { fill: #e5e7eb; stroke: #9ca3af; stroke-width: 1; stroke-dasharray: 6 4; }
+      .list-row { fill: #ffffff; stroke: #e5e7eb; stroke-width: 1; }
+      .arrow { fill: none; stroke: #94a3b8; stroke-width: 2; marker-end: url(#mk); }
+      .mode-tie { fill: none; stroke: #ea580c; stroke-width: 1.2; stroke-dasharray: 4 3; opacity: 0.55; }
+      .tool-panel { fill: #fffbeb; stroke: #fde68a; stroke-width: 1; }
+    ]]></style>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.18"/>
+    </filter>
+    <marker id="mk" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+  <text x="984" y="44" text-anchor="middle" class="doc-title">整机儿童端 UI 线框（横屏优先布局）</text>
+  <text x="984" y="68" text-anchor="middle" class="doc-sub">①② 与基准图同壳；右侧工具与左侧「涂色乐园」绑定示意；③ 本机设置；非 OEM 定稿</text>
+  <g transform="translate(48,78)">
+    <!-- 1 可打印 -->
+    <g filter="url(#shadow)">
+      <rect class="bezel" x="0" y="0" width="600" height="338" rx="20" ry="20"/>
+      <rect class="screen" x="10" y="10" width="580" height="318" rx="14" ry="14"/>
+
+      <rect class="status-bar" x="10" y="10" width="580" height="32" rx="14" ry="14"/>
+      <text x="22" y="30" class="scr-small">10:30</text>
+      <text x="578" y="30" text-anchor="end" class="scr-small">WiFi</text>
+      <text x="28" y="46" class="scr-small">左侧 · 创作模式</text>
+      <rect class="chip" x="28" y="60" width="88" height="46" rx="10" ry="10"/>
+      <text x="72" y="87" text-anchor="middle" class="scr-body">AI 创作</text>
+      <rect class="nav-on" x="28" y="112" width="88" height="46" rx="10" ry="10"/>
+      <text x="72" y="139" text-anchor="middle" class="scr-body">涂色乐园</text>
+      <rect class="chip" x="28" y="164" width="88" height="46" rx="10" ry="10"/>
+      <text x="72" y="191" text-anchor="middle" class="scr-body">趣味模板</text>
+      <rect class="chip" x="28" y="216" width="88" height="46" rx="10" ry="10"/>
+      <text x="72" y="243" text-anchor="middle" class="scr-body">我的作品</text>
+      <path class="mode-tie" d="M 117 135 L 285 135 L 285 68 L 452 68" />
+      <text x="124" y="46" class="scr-small">中央画布（随模式）</text>
+      <rect class="preview" x="124" y="50" width="322" height="178" rx="12" ry="12"/>
+      <text x="285" y="133" text-anchor="middle" class="scr-small">安静书线稿</text>
+      <text x="285" y="149" text-anchor="middle" class="scr-small">（涂色乐园）</text>
+      <circle cx="146" cy="246" r="11" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1"/>
+      <circle cx="172" cy="246" r="11" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1"/>
+      <text x="192" y="250" class="scr-small">撤销 / 重做</text>
+      <text x="28" y="268" class="scr-small">机身顶侧物理「按住说话」见整机基准图</text>
+      <rect class="tool-panel" x="450" y="44" width="126" height="238" rx="10" ry="10"/>
+      <text x="513" y="59" text-anchor="middle" class="scr-body">涂色乐园</text>
+      <text x="513" y="74" text-anchor="middle" class="scr-small">专用工具</text>
+      <rect class="chip" x="454" y="82" width="118" height="30" rx="8" ry="8"/>
+      <text x="513" y="102" text-anchor="middle" class="scr-body">参考线稿</text>
+      <text x="513" y="126" text-anchor="middle" class="scr-small">轮廓显隐</text>
+      <rect class="chip" x="454" y="132" width="118" height="30" rx="8" ry="8"/>
+      <text x="513" y="152" text-anchor="middle" class="scr-body">涂色笔</text>
+      <text x="513" y="176" text-anchor="middle" class="scr-small">粗/细</text>
+      <text x="513" y="190" text-anchor="middle" class="scr-small">填色颜料</text>
+      <circle cx="461" cy="203" r="7" fill="#ef4444" stroke="#cbd5e1" stroke-width="1"/>
+      <circle cx="481" cy="203" r="7" fill="#f97316" stroke="#cbd5e1" stroke-width="1"/>
+      <circle cx="501" cy="203" r="7" fill="#eab308" stroke="#cbd5e1" stroke-width="1"/>
+      <circle cx="521" cy="203" r="7" fill="#22c55e" stroke="#cbd5e1" stroke-width="1"/>
+      <circle cx="461" cy="223" r="7" fill="#38bdf8" stroke="#cbd5e1" stroke-width="1"/>
+      <circle cx="481" cy="223" r="7" fill="#a855f7" stroke="#cbd5e1" stroke-width="1"/>
+      <circle cx="501" cy="223" r="7" fill="#9ca3af" stroke="#cbd5e1" stroke-width="1"/>
+      <circle cx="521" cy="223" r="7" fill="#111827" stroke="#cbd5e1" stroke-width="1"/>
+      <rect class="chip" x="454" y="242" width="118" height="30" rx="8" ry="8"/>
+      <text x="513" y="262" text-anchor="middle" class="scr-body">涂色橡皮</text>
+      <text x="513" y="284" text-anchor="middle" class="scr-small">仅擦填色</text>
+      <rect class="btn-orange" x="28" y="290" width="544" height="38" rx="12" ry="12"/>
+      
+      <text x="300" y="314" text-anchor="middle" class="btn-orange-text">确认打印</text>
+    </g>
+    <path class="arrow" d="M 600,169 L 636,169"/>
+    <!-- 2 同主界面，底栏生成中（不可点） -->
+    <g transform="translate(636,0)" filter="url(#shadow)">
+      <rect class="bezel" x="0" y="0" width="600" height="338" rx="20" ry="20"/>
+      <rect class="screen" x="10" y="10" width="580" height="318" rx="14" ry="14"/>
+
+      <rect class="status-bar" x="10" y="10" width="580" height="32" rx="14" ry="14"/>
+      <text x="22" y="30" class="scr-small">10:30</text>
+      <text x="578" y="30" text-anchor="end" class="scr-small">WiFi</text>
+      <text x="28" y="46" class="scr-small">左侧 · 创作模式</text>
+      <rect class="chip" x="28" y="60" width="88" height="46" rx="10" ry="10"/>
+      <text x="72" y="87" text-anchor="middle" class="scr-body">AI 创作</text>
+      <rect class="nav-on" x="28" y="112" width="88" height="46" rx="10" ry="10"/>
+      <text x="72" y="139" text-anchor="middle" class="scr-body">涂色乐园</text>
+      <rect class="chip" x="28" y="164" width="88" height="46" rx="10" ry="10"/>
+      <text x="72" y="191" text-anchor="middle" class="scr-body">趣味模板</text>
+      <rect class="chip" x="28" y="216" width="88" height="46" rx="10" ry="10"/>
+      <text x="72" y="243" text-anchor="middle" class="scr-body">我的作品</text>
+      <path class="mode-tie" d="M 117 135 L 285 135 L 285 68 L 452 68" />
+      <text x="124" y="46" class="scr-small">中央画布（随模式）</text>
+      <rect class="preview" x="124" y="50" width="322" height="178" rx="12" ry="12"/>
+      <text x="285" y="133" text-anchor="middle" class="scr-small">安静书线稿</text>
+      <text x="285" y="149" text-anchor="middle" class="scr-small">（涂色乐园）</text>
+      <circle cx="146" cy="246" r="11" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1"/>
+      <circle cx="172" cy="246" r="11" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1"/>
+      <text x="192" y="250" class="scr-small">撤销 / 重做</text>
+      <text x="28" y="268" class="scr-small">机身顶侧物理「按住说话」见整机基准图</text>
+      <rect class="tool-panel" x="450" y="44" width="126" height="238" rx="10" ry="10"/>
+      <text x="513" y="59" text-anchor="middle" class="scr-body">涂色乐园</text>
+      <text x="513" y="74" text-anchor="middle" class="scr-small">专用工具</text>
+      <rect class="chip" x="454" y="82" width="118" height="30" rx="8" ry="8"/>
+      <text x="513" y="102" text-anchor="middle" class="scr-body">参考线稿</text>
+      <text x="513" y="126" text-anchor="middle" class="scr-small">轮廓显隐</text>
+      <rect class="chip" x="454" y="132" width="118" height="30" rx="8" ry="8"/>
+      <text x="513" y="152" text-anchor="middle" class="scr-body">涂色笔</text>
+      <text x="513" y="176" text-anchor="middle" class="scr-small">粗/细</text>
+      <text x="513" y="190" text-anchor="middle" class="scr-small">填色颜料</text>
+      <circle cx="461" cy="203" r="7" fill="#ef4444" stroke="#cbd5e1" stroke-width="1"/>
+      <circle cx="481" cy="203" r="7" fill="#f97316" stroke="#cbd5e1" stroke-width="1"/>
+      <circle cx="501" cy="203" r="7" fill="#eab308" stroke="#cbd5e1" stroke-width="1"/>
+      <circle cx="521" cy="203" r="7" fill="#22c55e" stroke="#cbd5e1" stroke-width="1"/>
+      <circle cx="461" cy="223" r="7" fill="#38bdf8" stroke="#cbd5e1" stroke-width="1"/>
+      <circle cx="481" cy="223" r="7" fill="#a855f7" stroke="#cbd5e1" stroke-width="1"/>
+      <circle cx="501" cy="223" r="7" fill="#9ca3af" stroke="#cbd5e1" stroke-width="1"/>
+      <circle cx="521" cy="223" r="7" fill="#111827" stroke="#cbd5e1" stroke-width="1"/>
+      <rect class="chip" x="454" y="242" width="118" height="30" rx="8" ry="8"/>
+      <text x="513" y="262" text-anchor="middle" class="scr-body">涂色橡皮</text>
+      <text x="513" y="284" text-anchor="middle" class="scr-small">仅擦填色</text>
+      <rect class="btn-print-busy" x="28" y="290" width="544" height="38" rx="12" ry="12"/>
+      <circle cx="228" cy="309" r="9" fill="none" stroke="#9a3412" stroke-width="2" stroke-dasharray="10 6"/>
+      <text x="300" y="314" text-anchor="middle" class="btn-busy-text">生成中…</text>
+    </g>
+    <path class="arrow" d="M 1236,169 L 1272,169"/>
+    <!-- 3 本机设置 -->
+    <g transform="translate(1272,0)" filter="url(#shadow)">
+      <rect class="bezel" x="0" y="0" width="600" height="338" rx="20" ry="20"/>
+      <rect class="screen" x="10" y="10" width="580" height="318" rx="14" ry="14"/>
+      <rect class="status-bar" x="10" y="10" width="580" height="32" rx="14" ry="14"/>
+      <text x="300" y="30" text-anchor="middle" class="scr-title">本机设置</text>
+      <text x="22" y="56" class="scr-small">常用（横屏双列）</text>
+      <text x="312" y="56" class="scr-small">设备与安全</text>
+      <rect class="list-row" x="18" y="64" width="268" height="40" rx="8" ry="8"/>
+      <text x="32" y="88" class="scr-body">Wi-Fi 与网络</text>
+      <rect class="list-row" x="308" y="64" width="268" height="40" rx="8" ry="8"/>
+      <text x="322" y="88" class="scr-body">音量与亮度</text>
+      <rect class="list-row" x="18" y="112" width="268" height="40" rx="8" ry="8"/>
+      <text x="32" y="136" class="scr-body">显示与夜间</text>
+      <rect class="list-row" x="308" y="112" width="268" height="40" rx="8" ry="8"/>
+      <text x="322" y="136" class="scr-body">家长锁</text>
+      <rect class="list-row" x="18" y="160" width="268" height="40" rx="8" ry="8"/>
+      <text x="32" y="184" class="scr-body">关于本机</text>
+      <rect class="list-row" x="308" y="160" width="268" height="40" rx="8" ry="8"/>
+      <text x="322" y="184" class="scr-body">恢复出厂（家长验证）</text>
+      <rect class="list-row" x="18" y="208" width="558" height="36" rx="8" ry="8"/>
+      <text x="32" y="230" class="scr-small">底部横条：返回 / 帮助（横屏底栏）</text>
+    </g>
+  </g>
+  <text x="984" y="472" text-anchor="middle" class="doc-sub">主界面分区与整机基准渲染图对齐；PTT 以机身物理键为主示意</text>
+</svg>
