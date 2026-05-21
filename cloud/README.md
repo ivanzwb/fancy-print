@@ -39,7 +39,7 @@ npm run build
 - **`/v1/parent/*`** → `PARENT_BFF_URL`（默认 `http://127.0.0.1:3002`）  
 - **`/v1/*`**（其余）→ `DEVICE_API_URL`（默认 `http://127.0.0.1:3001`）  
 
-须 **先注册** `/v1/parent`，再注册 `/v1`，避免被设备路由吞掉。
+路由使用 Fastify 的 Radix 树（find-my-way），`/v1/parent/*` 与 `/v1/*` 为兄弟分支，**注册顺序无关**。
 
 ### 设备通道（`device-api`）
 
