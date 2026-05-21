@@ -36,6 +36,6 @@ import { ASR_ADAPTER, IMAGE_GEN_ADAPTER } from './vendors/vendor-adapters.tokens
     S3AudioStagingService,
     VendorFacadeService,
   ],
-  exports: [VendorFacadeService, VendorStubsService],
+  exports: [VendorFacadeService, VendorStubsService, S3AudioStagingService],
 })
 export class AdaptersModule {}

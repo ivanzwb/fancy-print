@@ -24,7 +24,15 @@ export class VendorFacadeService {
   async resolveTranscript(job: JobRecord): Promise<string> {
     const asrConfigured = this.asr.usesAudioStaging();
     let presigned: string | null = null;
-    if (asrConfigured && job.audio_base64?.trim()) {
+    let audioBase64: string | undefined;
+
+    // Priority: S3 key from early upload → inline base64 → legacy inline → stub
+    if (asrConfigured && job.audio_s3_key && job.audio_s3_bucket) {
+      presigned = await this.audioStaging.presignedGetUrlForKey(
+        job.audio_s3_bucket,
+        job.audio_s3_key,
+      );
+    } else if (asrConfigured && job.audio_base64?.trim()) {
       presigned = await this.audioStaging.presignedGetUrlForJobAudio(
         job.job_id,
         job.audio_base64.trim(),
@@ -34,8 +42,9 @@ export class VendorFacadeService {
     const sendB64WithPresigned =
       process.env.ASR_SEND_BASE64_WITH_PRESIGNED === '1' ||
       process.env.ASR_HTTP_SEND_BASE64_WITH_PRESIGNED === '1';
-    const audioBase64 =
-      presigned && !sendB64WithPresigned ? undefined : job.audio_base64;
+    if (!presigned || sendB64WithPresigned) {
+      audioBase64 = job.audio_base64;
+    }
 
     const fromAdapter = await this.asr.transcribe({
       jobId: job.job_id,
