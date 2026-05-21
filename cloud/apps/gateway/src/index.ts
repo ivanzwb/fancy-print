@@ -1,8 +1,9 @@
-import Fastify from 'fastify';
-import proxy from '@fastify/http-proxy';
+import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
+import replyFrom from '@fastify/reply-from';
 import { randomUUID } from 'node:crypto';
 import tls from 'node:tls';
 import { Registry, collectDefaultMetrics } from 'prom-client';
+import type { IncomingHttpHeaders } from 'node:http';
 import {
   loadGatewayHttpsOptions,
   loadMtlsSerialMap,
@@ -30,30 +31,44 @@ function singleHeader(
   return undefined;
 }
 
-const proxyReplyOpts = {
-  rewriteRequestHeaders: (
-    originalReq: { headers: Record<string, unknown> },
-    headers: Record<string, string | string[] | undefined>,
-  ) => {
-    const id = String(originalReq.headers['x-request-id'] ?? '');
-    const out: Record<string, string | string[] | undefined> = {
-      ...headers,
-      'x-request-id': id,
-    };
-    const tp = singleHeader(originalReq.headers, 'traceparent');
-    if (tp) out.traceparent = tp;
-    const ts = singleHeader(originalReq.headers, 'tracestate');
-    if (ts) out.tracestate = ts;
-    const mtlsId = singleHeader(originalReq.headers, 'x-device-id-from-mtls');
-    if (mtlsId) out['x-device-id-from-mtls'] = mtlsId;
-    return out;
-  },
-};
+function proxyHandler(upstream: string) {
+  return async function (req: FastifyRequest, reply: FastifyReply) {
+    reply.from(upstream, {
+      rewriteRequestHeaders: (request, headers) => {
+        const id = String(request.headers['x-request-id'] ?? '');
+        const out: Record<string, string | string[] | undefined> = {
+          ...headers,
+          'x-request-id': id,
+        };
+        const tp = singleHeader(
+          request.headers as unknown as Record<string, unknown>,
+          'traceparent',
+        );
+        if (tp) out.traceparent = tp;
+        const ts = singleHeader(
+          request.headers as unknown as Record<string, unknown>,
+          'tracestate',
+        );
+        if (ts) out.tracestate = ts;
+        const mtlsId = singleHeader(
+          request.headers as unknown as Record<string, unknown>,
+          'x-device-id-from-mtls',
+        );
+        if (mtlsId) out['x-device-id-from-mtls'] = mtlsId;
+        return out as IncomingHttpHeaders;
+      },
+    });
+  };
+}
 
 async function main() {
   const app = Fastify({
     logger: true,
     ...(httpsOpts ? { https: httpsOpts } : {}),
+  });
+
+  await app.register(replyFrom, {
+    undici: { connections: 128, pipelining: 1 },
   });
 
   app.addHook('onRequest', async (req, reply) => {
@@ -94,21 +109,20 @@ async function main() {
     }
   });
 
-  await app.register(proxy, {
-    upstream: parentBffUrl,
-    prefix: '/v1/parent',
-    rewritePrefix: '/v1/parent',
-    http2: false,
-    replyOptions: proxyReplyOpts,
-  });
+  // ── Order-independent route registration ──────────────────────────
+  // Route matching uses Fastify's Radix tree (find-my-way), so sibling
+  // branches /v1/parent/* and /v1/* never conflict regardless of the
+  // order they are registered below.
 
-  await app.register(proxy, {
-    upstream: deviceApiUrl,
-    prefix: '/v1',
-    rewritePrefix: '/v1',
-    http2: false,
-    replyOptions: proxyReplyOpts,
-  });
+  const parentHandler = proxyHandler(parentBffUrl);
+  app.all('/v1/parent', parentHandler);
+  app.all('/v1/parent/*', parentHandler);
+
+  const deviceHandler = proxyHandler(deviceApiUrl);
+  app.all('/v1', deviceHandler);
+  app.all('/v1/*', deviceHandler);
+
+  // ── Built-in routes ───────────────────────────────────────────────
 
   app.get('/health', async () => ({
     status: 'ok',
