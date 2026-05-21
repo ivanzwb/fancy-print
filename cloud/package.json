@@ -1,0 +1,20 @@
+{
+  "name": "fancy-print-cloud",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "dev:gateway": "npm run dev -w gateway",
+    "dev:device-api": "npm run dev -w device-api",
+    "dev:parent-bff": "npm run dev -w parent-bff"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}

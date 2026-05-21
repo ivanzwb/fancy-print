@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Logs & caches
+*.log
+.npm-cache/
+
+# Environment
+.env
+.env.*.local
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Flutter / Dart
+apps/parent/.dart_tool/
+apps/parent/.flutter-plugins
+apps/parent/.flutter-plugins-dependencies
+apps/parent/.packages
+apps/parent/build/
+apps/parent/**/Generated.xcconfig
+apps/parent/**/Flutter.podspec
+apps/parent/ios/Pods/
+apps/parent/ios/.symlinks/
+apps/parent/android/.gradle/
+apps/parent/android/local.properties
+apps/parent/**/*.iml
+
+# Coverage
+coverage/
