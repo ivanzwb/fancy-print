@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { CurrentDevice } from '../common/current-device.decorator';
 import { deviceTelemetryPostsTotal } from '../common/metrics';
+import { appendTelemetryNdjson } from '../common/telemetry-log';
 import { findForbiddenTelemetryKey } from '../common/telemetry-payload.guard';
 
 /**
@@ -79,5 +80,14 @@ export class DevicesTelemetryController {
       `device_telemetry_https device_id=${dev.device_id} firmware_version=${firmware ?? '-'} rssi_dbm=${rssi ?? '-'} uptime_sec=${uptime ?? '-'}`,
     );
     deviceTelemetryPostsTotal.inc({ result: 'accepted' });
+    appendTelemetryNdjson({
+      transport: 'https',
+      device_id: dev.device_id,
+      summary: {
+        firmware_version: firmware,
+        rssi_dbm: rssi,
+        uptime_sec: uptime,
+      },
+    });
   }
 }

@@ -9,12 +9,12 @@ export class JobsArtifactController {
   constructor(private readonly jobs: JobsService) {}
 
   @Get(':jobId/artifact')
-  artifact(
+  async artifact(
     @Param('jobId') jobId: string,
     @CurrentDevice() dev: { device_id: string },
     @Res({ passthrough: false }) reply: FastifyReply,
   ) {
-    const url = this.jobs.getArtifactRedirectUrl(jobId, dev.device_id);
+    const url = await this.jobs.getArtifactRedirectUrl(jobId, dev.device_id);
     if (!url) {
       return reply.status(409).send({
         code: 'ARTIFACT_NOT_READY',

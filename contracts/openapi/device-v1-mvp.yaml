@@ -1,11 +1,13 @@
 openapi: 3.0.3
 info:
   title: fancy-print device channel (MVP)
-  version: 0.2.7
+  version: 0.2.12
   description: >
-    Aligned with doc/4 §2.4.1 / §2.4.3 / §3.1 / §5. Optional vendor HTTP: `ASR_HTTP_URL`,
-    `IMAGE_GEN_HTTP_URL`, S3 presign via `S3_PREVIEW_BUCKET`+`AWS_REGION`. mTLS trust headers:
-    `MTLS_HEADER_TRUST`, `POST /v1/auth/mtls`. MQTT: `MQTT_URL`, `MQTT_SUBSCRIBE_TELEMETRY`.
+    Aligned with doc/4 §2.4.1 / §2.4.3 / §3.1 / §5. Redis job store: `REDIS_URL`, `JOB_REDIS_TTL_SEC`, `REDIS_KEY_PREFIX`;
+    cross-replica **pipeline advance lock** (`JOB_ADVANCE_LOCK_TTL_SEC`, `JOB_ADVANCE_LOCK_WAIT_MS`); cold import
+    `JOB_REDIS_IMPORT_FILE` + `JOB_REDIS_IMPORT_OVERWRITE`; shutdown export `JOB_FILE_EXPORT_ON_SHUTDOWN` + optional
+    `JOB_FILE_EXPORT_PATH`. Vendor HTTP, S3 audio/preview, moderation, telemetry NDJSON, device registry file, mTLS,
+    MQTT as in prior revisions.
 servers:
   - url: http://127.0.0.1:3001
     description: device-api
@@ -181,7 +183,7 @@ paths:
   /v1/jobs/{job_id}:
     get:
       tags: [jobs]
-      summary: Poll job; advances stub pipeline one step per request after audio upload
+      summary: Poll job; advances pipeline one step per request after audio (ASR → text mod → image gen → preview)
       security: [{ deviceBearer: [] }]
       parameters:
         - in: path
@@ -218,7 +220,7 @@ paths:
                 audio_base64:
                   type: string
                   description: >-
-                    Optional base64 audio; capped server-side. Passed to `ASR_HTTP_URL` when set.
+                    Optional base64 audio; capped server-side. After close, fed to in-process ASR (Iflytek IAT when configured).
       responses:
         "200":
           description: Audio phase closed (stub)
@@ -234,12 +236,12 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ApiError" }
         "502":
-          description: ASR HTTP upstream error (when ASR_HTTP_URL is set)
+          description: ASR upstream error from configured ASR adapter
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiError" }
         "503":
-          description: ASR HTTP upstream unreachable
+          description: ASR upstream unreachable
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiError" }
@@ -247,8 +249,9 @@ paths:
     post:
       tags: [jobs]
       summary: >-
-        Chunk upload stub (doc §2.4.1). No audio bytes stored. Empty body or `{final:true}` closes
-        like POST .../audio. With `seq` + `final`, `seq` must strictly increase; duplicate seq is idempotent.
+        Chunked audio upload: optional `audio_base64` per chunk; fragments are decoded and concatenated in `seq`
+        order when `final:true`. Empty body or `{final:true}` closes like POST .../audio. `seq` must strictly
+        increase; duplicate seq is idempotent.
       security: [{ deviceBearer: [] }]
       parameters:
         - in: path
@@ -269,6 +272,9 @@ paths:
                 final:
                   type: boolean
                   description: When true (with valid seq), or alone / empty body, closes upload → audio_received
+                audio_base64:
+                  type: string
+                  description: Optional base64 fragment for this seq (decoded and merged in order on close)
       responses:
         "200":
           description: Job after chunk or after close
@@ -397,18 +403,27 @@ components:
         policy_version: { type: integer, nullable: true }
         state:
           type: string
-          description: Stub pipeline state
+          enum:
+            - created
+            - audio_received
+            - asr_complete
+            - moderation_passed
+            - image_generation
+            - preview_ready
+            - failed
+            - print_acknowledged
+          description: Job pipeline state; `failed` is terminal (see `error_code`)
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
         transcript: { type: string, nullable: true }
         chunks_max_seq:
           type: integer
           nullable: true
-          description: Present while chunking in `created` state (stub)
+          description: Present while chunking in `created` state
         audio_base64:
           type: string
           nullable: true
-          description: Present when supplied on POST .../audio (capped)
+          description: Omitted in GET responses (privacy); supplied via POST .../audio or assembled from chunks
         preview_url: { type: string, nullable: true }
         preview_url_expires_at: { type: string, format: date-time, nullable: true }
         error_code: { type: string, nullable: true }

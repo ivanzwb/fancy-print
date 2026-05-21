@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { connect, type MqttClient } from 'mqtt';
 import { telemetryMqttReceivedTotal } from '../common/metrics';
+import { appendTelemetryNdjson } from '../common/telemetry-log';
 import { findForbiddenTelemetryKey } from '../common/telemetry-payload.guard';
 import type { JobRecord } from '../jobs/job.types';
 
@@ -127,5 +128,12 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
     this.logger.log(
       `telemetry_mqtt device_id=${deviceId} firmware_version=${fw}`,
     );
+    appendTelemetryNdjson({
+      transport: 'mqtt',
+      device_id: deviceId,
+      summary: {
+        firmware_version: fw,
+      },
+    });
   }
 }

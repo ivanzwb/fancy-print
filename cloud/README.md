@@ -10,7 +10,7 @@
 
 共享库放在 `packages/*`（示例：`@fancy-print/config`）。
 
-**实现范围**：`cloud/` 侧重 **HTTP/MQTT 契约与编排骨架**；真实 ASR、文生图、图审、对象存储与家长端 **量产 OIDC** 属于设计文档 **§8** 量产交付项，当前为桩或开发换票，与 **§8.1** 说明一致（见 [`../doc/4. 服务器端设计.md`](../doc/4.%20服务器端设计.md)）。
+**实现范围**：`cloud/` 侧重 **HTTP/MQTT 契约与编排骨架**；ASR / 文生图为 **进程内 Adapter**（讯飞、通义，见 [`doc/4. 服务器端设计.md`](../doc/4.%20服务器端设计.md) **§2.2.2**）；图审与家长端 **量产 OIDC** 等仍属设计文档 **§8** 量产交付项，与 **§8.1** 说明一致（同文档）。
 
 若 `node_modules` 曾由其他包管理器生成，建议删除 `cloud/node_modules` 后重新执行 `npm install`，避免残留目录干扰。
 
@@ -49,13 +49,13 @@ npm run build
 2. 响应中的 **`access_token`** 作为后续请求的 **`Authorization: Bearer ...`**。  
 3. `POST /v1/auth/token` 使用 `refresh_token` 换发。
 
-**密钥环境变量（生产务必修改）**：`DEVICE_JWT_ACCESS_SECRET`、`DEVICE_JWT_REFRESH_SECRET`、`DEVICE_DEV_CREDENTIALS`。
+**密钥环境变量（生产务必修改）**：`DEVICE_JWT_ACCESS_SECRET`、`DEVICE_JWT_REFRESH_SECRET`、`DEVICE_DEV_CREDENTIALS`；可选 **`DEVICE_REGISTRY_JSON_PATH`**（JSON 文件合并更多 `device_id` / `secret`）。
 
 **Job 主路径**
 
 1. `POST /v1/jobs` 返回 **201**，响应头 **`Location: /v1/jobs/{id}`**；体 `{"content_mode":"…","child_profile_id":"可选"}`。`content_mode` **须为** `GET /v1/policy` 返回的 **`content_modes_allowed`** 之一（当前桩：`coloring_quiet_book`、`paper_craft`、`dress_up`）。可选 **`Idempotency-Key`**（**按设备作用域** 幂等）。  
-2. `POST /v1/jobs/{id}/audio` **整段关采音**（可选 body **`audio_base64`**，在配置 **`ASR_HTTP_URL`** 时随 ASR 请求发送）；或 **`POST /v1/jobs/{id}/chunks`**：无 body / `{final:true}` 与 audio 等价；带 **`seq`+`final`** 时 `seq` 须**严格递增**（重复 `seq` 幂等），`final:true` 关采音（仍无真实分片缓冲）。  
-3. 多次 **`GET /v1/jobs/{id}`** 轮询：每次 **推进一档** stub 状态机直至 `preview_ready`。  
+2. `POST /v1/jobs/{id}/audio` **整段关采音**（可选 body **`audio_base64`**）；关采音后由 **`ASR_DRIVER`** 选定的 **进程内 ASR**（默认 `auto`：已配讯飞凭据则 **IAT**，否则桩转写）。可选 **`S3_AUDIO_BUCKET`** 时先生成预签名 URL 供 ASR 拉取。或 **`POST /v1/jobs/{id}/chunks`**：无 body / `{final:true}` 与 audio 等价；带 **`seq`+`final`** 时 `seq` 须**严格递增**（重复 `seq` 幂等），每片可选 **`audio_base64`**，`final:true` 时按序号**解码拼接**为整段再关采音。  
+3. 多次 **`GET /v1/jobs/{id}`** 轮询：每次 **推进一档**（ASR → 文本审核 → 生图与成图审核 → 预览）；审核未配置 HTTP 时该步默认放行；上游失败则 **`state: failed`** 与 **`error_code`**。多实例请配置 **`REDIS_URL`**（Job 与幂等键存 Redis）；单机可用 **`JOBS_PERSISTENCE_PATH`** 落盘 JSON（与 Redis 二选一，见 README）。  
 4. **`GET /v1/jobs/{id}/artifact`** → `302` 到预览 URL（未就绪则 `409`）。  
 5. `POST .../print-ack` 必须 **`Idempotency-Key`**（**按设备作用域** 幂等）。
 
@@ -63,13 +63,17 @@ npm run build
 
 **MQTT（doc/4 §2.4.3）**：设置 **`MQTT_URL`** 后，Job 状态变更会向 `devices/{device_id}/jobs/{job_id}/status` 发布（QoS1）。另设 **`MQTT_SUBSCRIBE_TELEMETRY=1`**（`1`/`true`/`yes`）时，`device-api` 会订阅 **`devices/+/telemetry`**，与 [`../edge/cloud-connector/README.md`](../edge/cloud-connector/README.md) 中的 **MQTT 发布示例** 联调。
 
-**遥测（§2.4.3 设备→云）**：**`POST /v1/devices/telemetry`**（Bearer）接受脱敏摘要 JSON（如 `firmware_version`、`rssi_dbm`、`uptime_sec`），成功返回 **204**；禁止 `audio`/`recording`/`transcript_raw` 等字段名。指标 **`fancy_print_device_telemetry_posts_total`**（HTTPS）、**`fancy_print_device_telemetry_mqtt_received_total`**（MQTT 订阅桩）。
+**遥测（§2.4.3 设备→云）**：**`POST /v1/devices/telemetry`**（Bearer）接受脱敏摘要 JSON（如 `firmware_version`、`rssi_dbm`、`uptime_sec`），成功返回 **204**；禁止 `audio`/`recording`/`transcript_raw` 等字段名。指标 **`fancy_print_device_telemetry_posts_total`**（HTTPS）、**`fancy_print_device_telemetry_mqtt_received_total`**（MQTT 订阅桩）。可选 **`DEVICE_TELEMETRY_LOG_PATH`**：每行一条 **NDJSON** 审计（仅已接受的摘要字段）。
 
 **mTLS**：Ingress/Nginx 或本仓库 **`gateway` 进程内 HTTPS+mTLS**（`GATEWAY_TLS_*`、`GATEWAY_MTLS_SERIAL_MAP_JSON`），见 [`docs/ingress-mtls.md`](docs/ingress-mtls.md)。
 
-**第三方 ASR / 文生图 / S3 预签名**：设置 **`ASR_HTTP_URL`**（可选 **`ASR_HTTP_AUTHORIZATION`**、超时 **`ASR_HTTP_TIMEOUT_MS`**）、**`IMAGE_GEN_HTTP_URL`**（可选 **`IMAGE_GEN_HTTP_AUTHORIZATION`**、**`IMAGE_GEN_HTTP_TIMEOUT_MS`**、**`IMAGE_GEN_URL_TTL_MS`**）、以及 **`S3_PREVIEW_BUCKET`** + **`AWS_REGION`** + **`S3_PREVIEW_KEY_PREFIX`** / **`S3_PREVIEW_TTL_SEC`**（AWS 默认凭证链）。**GCS** 建议在生图 HTTP 服务内签名，响应 **`image_url`** 即可。详见 [`../contracts/openapi/device-v1-mvp.yaml`](../contracts/openapi/device-v1-mvp.yaml)。
+**供应商 Adapter**：**`ASR_DRIVER`**（`auto`|`iflytek`|`stub`）与 **`IMAGE_GEN_DRIVER`**（`auto`|`tongyi`|`stub`）选择进程内 **讯飞 IAT**、**通义万相（DashScope）** 或桩；环境变量与扩展方式见 [`../doc/4. 服务器端设计.md`](../doc/4.%20服务器端设计.md) **§2.2.2**。
+
+**审核与对象存储**：**`MODERATION_TEXT_HTTP_URL`** / **`MODERATION_IMAGE_HTTP_URL`**（可选鉴权/超时环境变量见 OpenAPI）；若配置 **`S3_AUDIO_BUCKET`**（及 **`AWS_REGION`**），关采音后可将音频 **Put** 到 S3 并生成短期 **GET 预签名 URL** 供 ASR 拉取（默认不再附带超大 **`audio_base64`**；需要双发时设 **`ASR_SEND_BASE64_WITH_PRESIGNED=1`** 或兼容旧名 **`ASR_HTTP_SEND_BASE64_WITH_PRESIGNED=1`**）。**`S3_PREVIEW_BUCKET`** + **`S3_PREVIEW_UPLOAD`** 等见 [`../contracts/openapi/device-v1-mvp.yaml`](../contracts/openapi/device-v1-mvp.yaml)。
 
 **mTLS 换 JWT**：`device-api` 设 **`MTLS_HEADER_TRUST=1`**、**`TRUSTED_PROXY_IPS`**、**`MTLS_ALLOWED_DEVICE_IDS_JSON`** 或 **`MTLS_TRUST_REGISTERED_DEVICES=1`**；设备经网关带 **`x-device-id-from-mtls`** 调用 **`POST /v1/auth/mtls`**。
+
+**Job 状态多实例**：设置 **`REDIS_URL`** 后，Job 与 **`Idempotency-Key`** 映射写入 Redis（**`REDIS_KEY_PREFIX`**，默认 `fp:`；**`JOB_REDIS_TTL_SEC`**，默认 604800）。**`GET /v1/jobs/{id}`** 在 Redis 下对同一 `job_id` 使用 **`SET NX` 推进锁**（**`JOB_ADVANCE_LOCK_TTL_SEC`** / **`JOB_ADVANCE_LOCK_WAIT_MS`**），释放用 Lua 防误删。冷迁移：**`JOB_REDIS_IMPORT_FILE=1`** + **`JOBS_PERSISTENCE_PATH`** 在启动时灌入 Redis（可选 **`JOB_REDIS_IMPORT_OVERWRITE=1`**）。关机导出：**`JOB_FILE_EXPORT_ON_SHUTDOWN=1`**，**`SCAN`** 写出 JSON 至 **`JOB_FILE_EXPORT_PATH`** 或 **`JOBS_PERSISTENCE_PATH`**。
 
 ### 家长 BFF（`parent-bff`）
 

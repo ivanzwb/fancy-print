@@ -1,4 +1,4 @@
-/** Stub pipeline aligned with doc/4 §4.1 (polling advances one logical step). */
+/** 与 doc/4 §4.1 对齐的轮询推进流水线；`failed` 为终态。 */
 export type JobState =
   | 'created'
   | 'audio_received'
@@ -18,12 +18,16 @@ export interface JobRecord {
   state: JobState;
   created_at: string;
   updated_at: string;
-  /** Populated after stub ASR step (doc/4 §4.1 GET job 可读字段). */
   transcript?: string | null;
-  /** Highest `seq` accepted on POST .../chunks while state is `created` (stub). */
+  /** 分片上传时：已接受的最大 `seq`（`created` 态）。 */
   chunks_max_seq?: number;
-  /** Optional PCM/WAV etc. base64 from `POST .../audio` (capped server-side) for ASR_HTTP_URL. */
+  /** 整段关采音后的 base64（由各分片解码拼接后再编码）。 */
   audio_base64?: string;
+  /** `seq` → base64 片段（仅存于 `created` 态）。 */
+  audio_chunk_buffers?: Record<string, string>;
+  /** 生图档完成后、定稿预览前：中间态（不应对外长期暴露）。 */
+  pending_preview_image_url?: string;
+  pending_preview_image_base64?: string;
   preview_url?: string;
   preview_url_expires_at?: string;
   error_code?: string;

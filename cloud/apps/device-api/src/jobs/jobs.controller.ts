@@ -19,14 +19,14 @@ export class JobsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(
+  async create(
     @Res({ passthrough: true }) reply: FastifyReply,
     @CurrentDevice() dev: { device_id: string },
     @Headers('idempotency-key') idempotencyKey: string | undefined,
     @Body()
     body: { content_mode?: string; child_profile_id?: string },
   ) {
-    const job = this.jobs.createJob({
+    const job = await this.jobs.createJob({
       content_mode: body.content_mode ?? '',
       device_id: dev.device_id,
       idempotencyKey: idempotencyKey?.trim() || undefined,
@@ -41,33 +41,33 @@ export class JobsController {
     @Param('jobId') jobId: string,
     @CurrentDevice() dev: { device_id: string },
   ) {
-    return this.jobs.getJob(jobId, dev.device_id);
+    return await this.jobs.getJob(jobId, dev.device_id);
   }
 
   @Post(':jobId/audio')
-  uploadAudio(
+  async uploadAudio(
     @Param('jobId') jobId: string,
     @CurrentDevice() dev: { device_id: string },
     @Body() body?: { audio_base64?: string },
   ) {
-    return this.jobs.attachAudio(jobId, dev.device_id, body?.audio_base64);
+    return await this.jobs.attachAudio(jobId, dev.device_id, body?.audio_base64);
   }
 
   @Post(':jobId/chunks')
-  uploadChunks(
+  async uploadChunks(
     @Param('jobId') jobId: string,
     @CurrentDevice() dev: { device_id: string },
-    @Body() body?: { seq?: number; final?: boolean },
+    @Body() body?: { seq?: number; final?: boolean; audio_base64?: string },
   ) {
-    return this.jobs.uploadChunk(jobId, dev.device_id, body);
+    return await this.jobs.uploadChunk(jobId, dev.device_id, body);
   }
 
   @Post(':jobId/print-ack')
-  printAck(
+  async printAck(
     @Param('jobId') jobId: string,
     @CurrentDevice() dev: { device_id: string },
     @Headers('idempotency-key') idempotencyKey: string | undefined,
   ) {
-    return this.jobs.printAck(jobId, dev.device_id, idempotencyKey);
+    return await this.jobs.printAck(jobId, dev.device_id, idempotencyKey);
   }
 }

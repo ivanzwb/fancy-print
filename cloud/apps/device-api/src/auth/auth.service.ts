@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import * as jwt from 'jsonwebtoken';
 import { randomBytes } from 'node:crypto';
+import { DeviceRegistryService } from '../devices/device-registry.service';
 
 const ACCESS_TTL_SEC = 900;
 const REFRESH_TTL_SEC = 7 * 24 * 3600;
@@ -16,29 +17,17 @@ export interface DeviceTokenResponse {
 export class AuthService {
   private readonly accessSecret: string;
   private readonly refreshSecret: string;
-  private readonly credentials = new Map<string, string>();
   private readonly refreshIndex = new Map<
     string,
     { device_id: string; exp: number }
   >();
   private readonly mtlsAllow = new Set<string>();
 
-  constructor() {
+  constructor(private readonly registry: DeviceRegistryService) {
     this.accessSecret =
       process.env.DEVICE_JWT_ACCESS_SECRET ?? 'dev-device-access-secret';
     this.refreshSecret =
       process.env.DEVICE_JWT_REFRESH_SECRET ?? 'dev-device-refresh-secret';
-    const raw =
-      process.env.DEVICE_DEV_CREDENTIALS ??
-      '{"fancy-print-dev":"fancy-print-secret"}';
-    try {
-      const creds = JSON.parse(raw) as Record<string, string>;
-      for (const [k, v] of Object.entries(creds)) {
-        this.credentials.set(k, v);
-      }
-    } catch {
-      this.credentials.set('fancy-print-dev', 'fancy-print-secret');
-    }
 
     const mtlsRaw = process.env.MTLS_ALLOWED_DEVICE_IDS_JSON?.trim();
     if (mtlsRaw) {
@@ -75,7 +64,7 @@ export class AuthService {
   private isMtlsDeviceAllowed(deviceId: string): boolean {
     if (this.mtlsAllow.has(deviceId)) return true;
     if (process.env.MTLS_TRUST_REGISTERED_DEVICES === '1') {
-      return this.credentials.has(deviceId);
+      return this.registry.hasDevice(deviceId);
     }
     return false;
   }
@@ -84,8 +73,7 @@ export class AuthService {
     deviceId: string,
     deviceSecret: string,
   ): DeviceTokenResponse {
-    const expected = this.credentials.get(deviceId);
-    if (!expected || expected !== deviceSecret) {
+    if (!this.registry.validate(deviceId, deviceSecret)) {
       throw new UnauthorizedException({
         code: 'DEVICE_AUTH_FAILED',
         message: 'Invalid device_id or device_secret',

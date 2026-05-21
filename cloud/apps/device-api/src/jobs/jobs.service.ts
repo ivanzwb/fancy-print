@@ -3,10 +3,15 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
+  OnApplicationBootstrap,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import * as fs from 'node:fs';
 import type { JobRecord, JobState } from './job.types';
+import { JobStateStoreService } from './job-state-store.service';
 import { VendorFacadeService } from '../adapters/vendor-facade.service';
 import { MqttService } from '../mqtt/mqtt.service';
 import { PolicyService } from '../policy/policy.service';
@@ -19,7 +24,7 @@ const PIPELINE_AFTER_AUDIO: JobState[] = [
   'preview_ready',
 ];
 
-const MAX_AUDIO_B64_LEN = 400_000;
+const MAX_AUDIO_B64_LEN = 4_000_000;
 
 function capAudioBase64(s: string | undefined): string | undefined {
   if (s === undefined || typeof s !== 'string') return undefined;
@@ -28,27 +33,78 @@ function capAudioBase64(s: string | undefined): string | undefined {
   return t.length > MAX_AUDIO_B64_LEN ? t.slice(0, MAX_AUDIO_B64_LEN) : t;
 }
 
+function cloneJobForApi(job: JobRecord): JobRecord {
+  const j = { ...job };
+  delete j.audio_base64;
+  delete j.audio_chunk_buffers;
+  delete j.pending_preview_image_url;
+  delete j.pending_preview_image_base64;
+  return j;
+}
+
+interface PersistedJobsBlob {
+  v: 1;
+  jobs: JobRecord[];
+  createIdempotency: [string, string][];
+  printAckIdempotency: [string, { job_id: string; accepted_at: string }][];
+}
+
 @Injectable()
-export class JobsService {
-  private readonly jobs = new Map<string, JobRecord>();
-  private readonly createIdempotency = new Map<string, string>();
-  private readonly printAckIdempotency = new Map<
-    string,
-    { job_id: string; accepted_at: string }
-  >();
+export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
+  private readonly logger = new Logger(JobsService.name);
+  private persistTimer?: ReturnType<typeof setTimeout>;
+  private persistPath?: string;
 
   constructor(
+    private readonly store: JobStateStoreService,
     private readonly mqtt: MqttService,
     private readonly policy: PolicyService,
     private readonly vendorFacade: VendorFacadeService,
   ) {}
 
-  createJob(input: {
+  onApplicationBootstrap() {
+    if (this.store.usesRedis()) {
+      if (process.env.JOBS_PERSISTENCE_PATH?.trim()) {
+        const imp = ['1', 'true', 'yes'].includes(
+          (process.env.JOB_REDIS_IMPORT_FILE ?? '').toLowerCase(),
+        );
+        this.logger.warn(
+          imp
+            ? 'Redis mode: JOBS_PERSISTENCE_PATH will be used for cold import (JOB_REDIS_IMPORT_FILE=1)'
+            : 'Redis mode: JOBS_PERSISTENCE_PATH is not loaded unless JOB_REDIS_IMPORT_FILE=1 (see README)',
+        );
+      }
+      return;
+    }
+
+    this.persistPath = process.env.JOBS_PERSISTENCE_PATH?.trim() || undefined;
+    if (!this.persistPath) return;
+    try {
+      const raw = fs.readFileSync(this.persistPath, 'utf8');
+      const data = JSON.parse(raw) as PersistedJobsBlob;
+      if (data?.v === 1 && Array.isArray(data.jobs)) {
+        this.store.seedMemoryFromJobs(
+          data.jobs,
+          data.createIdempotency ?? [],
+          data.printAckIdempotency ?? [],
+        );
+      }
+    } catch {
+      /* cold start */
+    }
+  }
+
+  onModuleDestroy() {
+    if (this.persistTimer) clearTimeout(this.persistTimer);
+    this.flushPersistenceSync();
+  }
+
+  async createJob(input: {
     content_mode: string;
     device_id: string;
     idempotencyKey?: string;
     child_profile_id?: string;
-  }): JobRecord {
+  }): Promise<JobRecord> {
     const mode = input.content_mode?.trim();
     if (!mode) {
       throw new BadRequestException({
@@ -65,21 +121,25 @@ export class JobsService {
       });
     }
 
-    if (input.idempotencyKey) {
-      const idemKey = `${input.device_id}:${input.idempotencyKey}`;
-      const existingId = this.createIdempotency.get(idemKey);
+    const idemKey = input.idempotencyKey
+      ? `${input.device_id}:${input.idempotencyKey}`
+      : undefined;
+
+    if (idemKey) {
+      const existingId = await this.store.getCreateIdem(idemKey);
       if (existingId) {
-        const job = this.jobs.get(existingId);
+        const job = await this.store.getJob(existingId);
         if (job) {
           this.assertDevice(job, input.device_id);
-          return { ...job };
+          return cloneJobForApi({ ...job });
         }
       }
     }
 
     const now = new Date().toISOString();
+    const jobId = randomUUID();
     const job: JobRecord = {
-      job_id: randomUUID(),
+      job_id: jobId,
       device_id: input.device_id,
       content_mode: mode,
       child_profile_id: input.child_profile_id?.trim() || undefined,
@@ -88,28 +148,75 @@ export class JobsService {
       created_at: now,
       updated_at: now,
     };
-    this.jobs.set(job.job_id, job);
-    if (input.idempotencyKey) {
-      this.createIdempotency.set(
-        `${input.device_id}:${input.idempotencyKey}`,
-        job.job_id,
-      );
+
+    await this.store.setJob(job);
+
+    if (idemKey) {
+      const acquired = await this.store.setCreateIdemNx(idemKey, jobId);
+      if (!acquired) {
+        const winnerId = await this.store.getCreateIdem(idemKey);
+        await this.store.deleteJob(jobId);
+        const winner = winnerId ? await this.store.getJob(winnerId) : undefined;
+        if (winner) {
+          this.assertDevice(winner, input.device_id);
+          return cloneJobForApi({ ...winner });
+        }
+      }
     }
+
     this.mqtt.publishJobStatus(job);
-    return { ...job };
+    this.schedulePersist();
+    return cloneJobForApi({ ...job });
   }
 
-  /** One stub pipeline step per poll until preview_ready (doc §4.1). */
   async getJob(jobId: string, deviceId: string): Promise<JobRecord> {
-    const job = this.getRef(jobId);
-    this.assertDevice(job, deviceId);
-    await this.advanceStubPipelineAsync(job);
-    this.mqtt.publishJobStatus(job);
-    return { ...job };
+    let working = await this.requireJob(jobId);
+    this.assertDevice(working, deviceId);
+
+    if (this.store.usesRedis()) {
+      const token = await this.store.acquireJobAdvanceLock(jobId);
+      if (token) {
+        try {
+          const latest = await this.store.getJob(jobId);
+          if (!latest) {
+            throw new NotFoundException({
+              code: 'JOB_NOT_FOUND',
+              message: `Unknown job_id: ${jobId}`,
+            });
+          }
+          this.assertDevice(latest, deviceId);
+          await this.advancePipelineAsync(latest);
+          await this.store.setJob(latest);
+          working = latest;
+        } finally {
+          await this.store.releaseJobAdvanceLock(jobId, token);
+        }
+      } else {
+        const fresh = await this.store.getJob(jobId);
+        if (!fresh) {
+          throw new NotFoundException({
+            code: 'JOB_NOT_FOUND',
+            message: `Unknown job_id: ${jobId}`,
+          });
+        }
+        this.assertDevice(fresh, deviceId);
+        working = fresh;
+      }
+    } else {
+      await this.advancePipelineAsync(working);
+      await this.store.setJob(working);
+    }
+
+    this.mqtt.publishJobStatus(working);
+    this.schedulePersist();
+    return cloneJobForApi({ ...working });
   }
 
-  getArtifactRedirectUrl(jobId: string, deviceId: string): string | null {
-    const job = this.getRef(jobId);
+  async getArtifactRedirectUrl(
+    jobId: string,
+    deviceId: string,
+  ): Promise<string | null> {
+    const job = await this.requireJob(jobId);
     this.assertDevice(job, deviceId);
     if (job.state !== 'preview_ready' && job.state !== 'print_acknowledged') {
       return null;
@@ -118,15 +225,21 @@ export class JobsService {
     return job.preview_url;
   }
 
-  attachAudio(
+  async attachAudio(
     jobId: string,
     deviceId: string,
     audioBase64?: string,
-  ): JobRecord {
-    const job = this.getRef(jobId);
+  ): Promise<JobRecord> {
+    const job = await this.requireJob(jobId);
     this.assertDevice(job, deviceId);
+    if (job.state === 'failed') {
+      throw new ConflictException({
+        code: 'INVALID_JOB_STATE',
+        message: 'Cannot attach audio to failed job',
+      });
+    }
     if (job.state === 'preview_ready' || job.state === 'print_acknowledged') {
-      return { ...job };
+      return cloneJobForApi({ ...job });
     }
     if (job.state !== 'created') {
       throw new ConflictException({
@@ -137,25 +250,28 @@ export class JobsService {
     const capped = capAudioBase64(audioBase64);
     if (capped) job.audio_base64 = capped;
     delete job.chunks_max_seq;
+    delete job.audio_chunk_buffers;
     job.state = 'audio_received';
     job.updated_at = new Date().toISOString();
+    await this.store.setJob(job);
     this.mqtt.publishJobStatus(job);
-    return { ...job };
+    this.schedulePersist();
+    return cloneJobForApi({ ...job });
   }
 
-  /**
-   * doc/4 §2.4.1 分片序号桩：无真实音频缓冲。
-   * - 无 body / `{}`：与 `POST .../audio` 相同，直接关采音。
-   * - `{ "final": true }`：同上。
-   * - `{ "seq": n, "final": false|true }`：`seq` 须严格大于已接受的最大序号；`final:true` 时关采音。
-   */
-  uploadChunk(
+  async uploadChunk(
     jobId: string,
     deviceId: string,
-    body?: { seq?: number; final?: boolean },
-  ): JobRecord {
-    const job = this.getRef(jobId);
+    body?: { seq?: number; final?: boolean; audio_base64?: string },
+  ): Promise<JobRecord> {
+    const job = await this.requireJob(jobId);
     this.assertDevice(job, deviceId);
+    if (job.state === 'failed') {
+      throw new ConflictException({
+        code: 'INVALID_JOB_STATE',
+        message: 'Cannot upload chunks to failed job',
+      });
+    }
 
     const raw = body ?? {};
     const keys = Object.keys(raw);
@@ -163,11 +279,11 @@ export class JobsService {
     const finalExplicit = 'final' in raw && typeof raw.final === 'boolean';
 
     if (keys.length === 0) {
-      return this.attachAudio(jobId, deviceId);
+      return await this.attachAudio(jobId, deviceId);
     }
 
     if (!hasSeq && raw.final === true) {
-      return this.attachAudio(jobId, deviceId);
+      return await this.attachAudio(jobId, deviceId);
     }
 
     if (!hasSeq && raw.final === false) {
@@ -175,6 +291,10 @@ export class JobsService {
         code: 'CHUNK_SEQ_REQUIRED',
         message: 'seq is required when final is false',
       });
+    }
+
+    if (!hasSeq && !finalExplicit) {
+      return await this.attachAudio(jobId, deviceId);
     }
 
     if (hasSeq) {
@@ -199,25 +319,47 @@ export class JobsService {
       }
       const hwm = job.chunks_max_seq ?? -1;
       if (seq <= hwm) {
-        return { ...job };
+        return cloneJobForApi({ ...job });
       }
       job.chunks_max_seq = seq;
+      if (!job.audio_chunk_buffers) job.audio_chunk_buffers = {};
+      const frag =
+        typeof raw.audio_base64 === 'string' ? raw.audio_base64.trim() : '';
+      if (frag) {
+        job.audio_chunk_buffers[String(seq)] = frag;
+      }
       job.updated_at = new Date().toISOString();
       if (raw.final) {
+        const merged = this.mergeAudioChunks(job);
         delete job.chunks_max_seq;
+        delete job.audio_chunk_buffers;
+        if (merged) job.audio_base64 = merged;
         job.state = 'audio_received';
         job.updated_at = new Date().toISOString();
+        await this.store.setJob(job);
         this.mqtt.publishJobStatus(job);
-        return { ...job };
+        this.schedulePersist();
+        return cloneJobForApi({ ...job });
       }
+      await this.store.setJob(job);
       this.mqtt.publishJobStatus(job);
-      return { ...job };
+      this.schedulePersist();
+      return cloneJobForApi({ ...job });
     }
 
-    return this.attachAudio(jobId, deviceId);
+    return await this.attachAudio(jobId, deviceId);
   }
 
-  printAck(jobId: string, deviceId: string, idempotencyKey?: string) {
+  async printAck(
+    jobId: string,
+    deviceId: string,
+    idempotencyKey?: string,
+  ): Promise<{
+    job_id: string;
+    accepted: boolean;
+    accepted_at: string;
+    idempotent_replay: boolean;
+  }> {
     if (!idempotencyKey?.trim()) {
       throw new BadRequestException({
         code: 'MISSING_IDEMPOTENCY_KEY',
@@ -225,7 +367,7 @@ export class JobsService {
       });
     }
     const key = `${deviceId}:${idempotencyKey.trim()}`;
-    const cached = this.printAckIdempotency.get(key);
+    const cached = await this.store.getPrintIdem(key);
     if (cached) {
       if (cached.job_id !== jobId) {
         throw new ConflictException({
@@ -241,8 +383,14 @@ export class JobsService {
       };
     }
 
-    const job = this.getRef(jobId);
+    const job = await this.requireJob(jobId);
     this.assertDevice(job, deviceId);
+    if (job.state === 'failed') {
+      throw new ConflictException({
+        code: 'INVALID_JOB_STATE',
+        message: 'print-ack not allowed for failed job',
+      });
+    }
     if (job.state !== 'preview_ready') {
       throw new ConflictException({
         code: 'INVALID_JOB_STATE',
@@ -253,8 +401,10 @@ export class JobsService {
     job.state = 'print_acknowledged';
     job.updated_at = acceptedAt;
     job.print_ack_at = acceptedAt;
-    this.printAckIdempotency.set(key, { job_id: jobId, accepted_at: acceptedAt });
+    await this.store.setPrintIdem(key, { job_id: jobId, accepted_at: acceptedAt });
+    await this.store.setJob(job);
     this.mqtt.publishJobStatus(job);
+    this.schedulePersist();
     return {
       job_id: jobId,
       accepted: true,
@@ -263,20 +413,100 @@ export class JobsService {
     };
   }
 
-  private async advanceStubPipelineAsync(job: JobRecord): Promise<void> {
+  private mergeAudioChunks(job: JobRecord): string | undefined {
+    const buf = job.audio_chunk_buffers;
+    if (!buf || Object.keys(buf).length === 0) return undefined;
+    const parts = Object.entries(buf)
+      .map(([k, v]) => [Number(k), v] as const)
+      .filter(([n]) => Number.isInteger(n) && n >= 0)
+      .sort((a, b) => a[0] - b[0]);
+    let acc = Buffer.alloc(0);
+    for (const [, frag] of parts) {
+      try {
+        acc = Buffer.concat([acc, Buffer.from(frag, 'base64')]);
+      } catch {
+        throw new BadRequestException({
+          code: 'INVALID_AUDIO_CHUNK_BASE64',
+          message: 'One or more chunks are not valid base64',
+        });
+      }
+      if (acc.length > MAX_AUDIO_B64_LEN) {
+        throw new BadRequestException({
+          code: 'AUDIO_ASSEMBLY_TOO_LARGE',
+          message: `Assembled audio exceeds ${MAX_AUDIO_B64_LEN} bytes (base64 decoded cap)`,
+        });
+      }
+    }
+    if (!acc.length) return undefined;
+    return acc.toString('base64');
+  }
+
+  private async advancePipelineAsync(job: JobRecord): Promise<void> {
+    if (job.state === 'failed' || job.state === 'print_acknowledged') return;
+
     const idx = PIPELINE_AFTER_AUDIO.indexOf(job.state as JobState);
     if (idx === -1) return;
     if (idx >= PIPELINE_AFTER_AUDIO.length - 1) return;
+
     const now = new Date();
-    job.state = PIPELINE_AFTER_AUDIO[idx + 1] as JobState;
+    const next = PIPELINE_AFTER_AUDIO[idx + 1] as JobState;
+    job.state = next;
     job.updated_at = now.toISOString();
-    if (job.state === 'asr_complete') {
-      job.transcript = await this.vendorFacade.resolveTranscript(job);
+
+    try {
+      if (next === 'asr_complete') {
+        job.transcript = await this.vendorFacade.resolveTranscript(job);
+      } else if (next === 'moderation_passed') {
+        const mod = await this.vendorFacade.moderateTranscript(job);
+        if (!mod.ok) {
+          this.markFailed(job, mod.reason_code);
+          return;
+        }
+      } else if (next === 'image_generation') {
+        const gen = await this.vendorFacade.runImageGeneration(job);
+        if (!gen.ok) {
+          this.markFailed(job, gen.reason_code);
+          return;
+        }
+      } else if (next === 'preview_ready') {
+        const p = await this.vendorFacade.finalizePreview(job, now.getTime());
+        job.preview_url = p.url;
+        job.preview_url_expires_at = p.expiresAtIso;
+      }
+    } catch {
+      this.markFailed(job, 'PIPELINE_UPSTREAM_ERROR');
     }
-    if (job.state === 'preview_ready') {
-      const p = await this.vendorFacade.resolvePreview(job, now.getTime());
-      job.preview_url = p.url;
-      job.preview_url_expires_at = p.expiresAtIso;
+  }
+
+  private markFailed(job: JobRecord, code: string) {
+    job.state = 'failed';
+    job.error_code = code;
+    job.updated_at = new Date().toISOString();
+    delete job.pending_preview_image_url;
+    delete job.pending_preview_image_base64;
+  }
+
+  private schedulePersist() {
+    if (this.store.usesRedis()) return;
+    if (!this.persistPath) return;
+    if (this.persistTimer) clearTimeout(this.persistTimer);
+    this.persistTimer = setTimeout(() => this.flushPersistenceSync(), 400);
+  }
+
+  private flushPersistenceSync() {
+    if (this.store.usesRedis()) return;
+    if (!this.persistPath) return;
+    const snap = this.store.exportMemorySnapshot();
+    const blob: PersistedJobsBlob = {
+      v: 1,
+      jobs: snap.jobs,
+      createIdempotency: snap.createIdempotency,
+      printAckIdempotency: snap.printAckIdempotency,
+    };
+    try {
+      fs.writeFileSync(this.persistPath, JSON.stringify(blob), 'utf8');
+    } catch {
+      /* ignore */
     }
   }
 
@@ -289,8 +519,8 @@ export class JobsService {
     }
   }
 
-  private getRef(jobId: string): JobRecord {
-    const job = this.jobs.get(jobId);
+  private async requireJob(jobId: string): Promise<JobRecord> {
+    const job = await this.store.getJob(jobId);
     if (!job) {
       throw new NotFoundException({
         code: 'JOB_NOT_FOUND',
