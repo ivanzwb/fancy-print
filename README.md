@@ -2,12 +2,22 @@
 
 儿童 AI 智能对话打印机 — 项目文档与概念原型（仓库名 **fancy-print**）。
 
-详细产品说明见 [`doc/idea.md`](doc/idea.md)。
+详细产品说明见 [`doc/产品构想.md`](doc/产品构想.md)。
 
-**产品渲染体系**：**整机唯一基准** 为 [`doc/fancy-print-product-render.png`](doc/fancy-print-product-render.png)；其上加 **可轻松更换** 的多样主题外壳（动物 / 联名等）。说明见 [`doc/product-render-system.md`](doc/product-render-system.md) · **模块化示意（底图即基准 PNG，矢量叠加）** [`doc/fancy-print-modular-concept.svg`](doc/fancy-print-modular-concept.svg) · 外壳素材目录 [`doc/renders/shells/`](doc/renders/shells/)。
+**云端**：设备经 `cloud-connector` 对接的 **API / MQTT、内容编排与安全** 见 [`doc/服务器端设计.md`](doc/服务器端设计.md)（与 [`doc/端侧软件与工程样机技术分析.md`](doc/端侧软件与工程样机技术分析.md) **§2.2** 端云边界一致）。
+
+**家长端 App**：移动应用的结构、策略档位与云端 BFF 见 [`doc/家长端应用设计.md`](doc/家长端应用设计.md)。
+
+**端侧软件（整机）**：进程、IPC、主流程与 OTA 导读见 [`doc/端侧设计.md`](doc/端侧设计.md)；完整技术分析与样机 BOM 见 [`doc/端侧软件与工程样机技术分析.md`](doc/端侧软件与工程样机技术分析.md)。
+
+**产品渲染体系**（**整机唯一基准** + **可更换外壳示意**；完整规则见 [`doc/端侧软件与工程样机技术分析.md`](doc/端侧软件与工程样机技术分析.md#product-render-system) **§11**）：
+
+![整机基准渲染（唯一机身基准）](doc/images/整机基准渲染图.png)
+
+![模块化外壳概念（底图为上，矢量叠加）](doc/images/模块化外壳概念图.svg)
 
 ## 硬件路线（ZINK）
 
-打印技术已定位为 **ZINK 全彩无墨**，耗材话术统一为 **ZINK 纸**（可涂色、剪纸、换装的手工向，非相纸洗照片）。**ZINK 路线、样机与幅面口径**见 [`hardware/README.md`](hardware/README.md) 与 [`hardware/demo-kit-bom.md`](hardware/demo-kit-bom.md)；工程归档（旧 UART 条打示例，**非 ZINK**）见 [`hardware/_archive/esp32-thermal-demo/`](hardware/_archive/esp32-thermal-demo/)。
+打印技术已定位为 **ZINK 全彩无墨**，耗材话术统一为 **ZINK 纸**（可涂色、剪纸、换装的手工向，非相纸洗照片）。**ZINK 路线、样机与幅面口径**见 [`doc/端侧软件与工程样机技术分析.md`](doc/端侧软件与工程样机技术分析.md#demo-kit-bom)（**§10** 起：工程样机 BOM / Bring-up；**§1～§9** 量产 OS 与端上应用）。
 
-[`hardware/README.md`](hardware/README.md) · [**`hardware/demo-kit-bom.md`**](hardware/demo-kit-bom.md)（工程样机 BOM） · [**`hardware/production-app-dev.md`**](hardware/production-app-dev.md)（**量产 OS + 端上 APP**）
+[**`doc/端侧软件与工程样机技术分析.md`**](doc/端侧软件与工程样机技术分析.md#demo-kit-bom)（**主文档**：量产 OS / 端上应用 **§1～§9**，工程样机硬件 **§10**，成品渲染 **§11**）

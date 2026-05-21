@@ -50,7 +50,7 @@
   <!-- ============ Layer 2: Edge Device (Debian/Ubuntu stack) ============ -->
   <rect x="30" y="240" width="780" height="218" rx="12" fill="#fffff0" stroke="#f6e05e" stroke-width="1.5" filter="url(#shadow)"/>
   <text x="48" y="264" font-size="13" font-weight="700" fill="#975a16">二、设备端 (Edge) — Debian / Ubuntu 嵌入式裁剪</text>
-  <text x="48" y="280" font-size="10" fill="#a08060">量产 OS 已定稿：同源 Debian 系 rootfs · 只读根 + overlay（或 A/B）· manifest 白名单 · 签名 OTA（详见 hardware/production-app-dev.md）</text>
+  <text x="48" y="280" font-size="10" fill="#a08060">量产 OS 已定稿：同源 Debian 系 rootfs · 只读根 + overlay（或 A/B）· manifest 白名单 · 签名 OTA（详见 ../端侧软件与工程样机技术分析.md）</text>
 
   <!-- 2-1: UI -->
   <rect x="52" y="292" width="176" height="86" rx="10" fill="#fff" stroke="#f6e05e" stroke-width="1.5" filter="url(#card-shadow)"/>
@@ -84,7 +84,7 @@
   <rect x="52" y="388" width="733" height="56" rx="8" fill="#f7fafc" stroke="#e2e8f0" stroke-width="1"/>
   <text x="420" y="408" text-anchor="middle" font-size="10" font-weight="600" fill="#4a5568">系统与用户态基线</text>
   <text x="420" y="424" text-anchor="middle" font-size="9" fill="#718096">systemd 托管上述服务 · 内核 + USB 栈来自 SoC BSP · 网络 NetworkManager / systemd-networkd（择一固化）</text>
-  <text x="420" y="436" text-anchor="middle" font-size="9" fill="#718096">工程样机：Raspberry Pi OS 或板厂 Debian/Ubuntu；量产：裁剪同源包命名空间（与 demo-kit-bom 冻结对齐）</text>
+  <text x="420" y="436" text-anchor="middle" font-size="9" fill="#718096">工程样机：Raspberry Pi OS 或板厂 Debian/Ubuntu；量产：裁剪同源包命名空间（与《端侧软件与工程样机技术分析》 §3.2 冻结对齐）</text>
 
   <!-- Arrow: Layer 2 to Layer 3 -->
   <line x1="420" y1="458" x2="420" y2="478" stroke="#a0aec0" stroke-width="2"/>
@@ -169,7 +169,7 @@
   <text x="60" y="860" font-size="10" fill="#2d3748">主控 + OS</text>
   <text x="200" y="860" font-size="10" fill="#718096">树莓派 5 / RK3588 等</text>
   <text x="420" y="860" font-size="10" fill="#718096">ARM64 · Debian 系用户态</text>
-  <text x="640" y="860" font-size="10" fill="#718096">详见 demo-kit-bom</text>
+  <text x="640" y="860" font-size="10" fill="#718096">详见《端侧软件与工程样机技术分析》</text>
 
   <text x="60" y="876" font-size="10" fill="#2d3748">打印</text>
   <text x="200" y="876" font-size="10" fill="#718096">ZINK OEM 机芯</text>
@@ -182,7 +182,7 @@
   <text x="640" y="892" font-size="10" fill="#718096">供应商以 BOM 为准</text>
 
   <line x1="50" y1="898" x2="790" y2="898" stroke="#e2e8f0" stroke-width="1"/>
-  <text x="60" y="912" font-size="10" fill="#718096">整机成本与详细料号不在此图维护；以项目计划书 §6 与 demo-kit-bom 滚动更新为准。</text>
+  <text x="60" y="912" font-size="10" fill="#718096">整机成本与详细料号不在此图维护；以项目计划书.md §6 与 ../端侧软件与工程样机技术分析.md 滚动更新为准。</text>
 
   <!-- Footer -->
   <text x="420" y="948" text-anchor="middle" font-size="10" fill="#a0aec0">端侧方案：Debian/Ubuntu 嵌入式裁剪 · 云端：ASR / LLM / 生图 / 审核（可替换供应商）</text>

@@ -1,19 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 920 400" font-family="PingFang SC, Microsoft YaHei, sans-serif">
-  <title>Fancy-print modular shell concept (base image embedded)</title>
-  <desc>Left: embedded fancy-print-product-render.png. Dashed ellipse and right icons are vector overlay only.</desc>
+  <title>模块化外壳概念图（底图为整机基准渲染）</title>
+  <desc>Left: embedded 整机基准渲染图.png. Dashed ellipse and right icons are vector overlay only.</desc>
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
       <path d="M0,0 L10,3 L0,6 Z" fill="#64748b"/>
     </marker>
   </defs>
   <rect width="920" height="400" fill="#fafafa"/>
-  <image href="fancy-print-product-render.png" xlink:href="fancy-print-product-render.png" x="20" y="36" width="480" height="320" preserveAspectRatio="xMidYMid meet"/>
+  <image href="整机基准渲染图.png" xlink:href="整机基准渲染图.png" x="20" y="36" width="480" height="320" preserveAspectRatio="xMidYMid meet"/>
   <text x="260" y="28" text-anchor="middle" font-size="13" font-weight="700" fill="#334155">基础款（唯一机身基准）</text>
   <ellipse cx="268" cy="118" rx="118" ry="42" fill="none" stroke="#ea580c" stroke-width="2.5" stroke-dasharray="10 7" opacity="0.9"/>
   <text x="268" y="178" text-anchor="middle" font-size="11.5" fill="#64748b">快拆接口区域（磁吸 / 卡扣示意）</text>
   <line x1="520" y1="24" x2="520" y2="376" stroke="#e2e8f0" stroke-width="1"/>
   <text x="720" y="36" text-anchor="middle" font-size="14" font-weight="700" fill="#334155">可换主题壳（B 层 SKU）</text>
-  <text x="720" y="54" text-anchor="middle" font-size="10.5" fill="#94a3b8">右侧为矢量占位；实物壳放入 renders/shells/</text>
+  <text x="720" y="54" text-anchor="middle" font-size="10.5" fill="#94a3b8">右侧为矢量占位；主题壳实物图建议放入 doc/images/（如 shells/）等约定路径</text>
   <g fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <g transform="translate(580,110)">
       <path d="M0,28 Q-12,-8 -22,-18 Q-18,8 -8,28 Z M28,28 Q40,-8 50,-18 Q46,8 36,28 Z"/>
@@ -36,6 +36,6 @@
   </g>
   <line x1="386" y1="118" x2="548" y2="118" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
   <line x1="386" y1="138" x2="560" y2="165" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#arrow)"/>
-  <text x="720" y="300" text-anchor="middle" font-size="10" fill="#94a3b8">Base file: fancy-print-product-render.png (same folder)</text>
+  <text x="720" y="300" text-anchor="middle" font-size="10" fill="#94a3b8">Base file: 整机基准渲染图.png (same folder)</text>
   <text x="720" y="318" text-anchor="middle" font-size="10" fill="#94a3b8">Replace PNG to update chassis; SVG picks it up automatically</text>
 </svg>
