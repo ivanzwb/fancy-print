@@ -73,8 +73,10 @@ export class PipelineQueueService implements OnModuleDestroy {
       });
     this.activePromises.push(promise);
 
-    // Cleanup resolved promises to avoid memory leak
-    this.activePromises = this.activePromises.filter((p) => p !== promise);
+    // Cleanup resolved promises from the array to avoid memory leak
+    promise.finally(() => {
+      this.activePromises = this.activePromises.filter((p) => p !== promise);
+    });
   }
 
   /** Drain remaining tasks (up to `timeoutMs`) on shutdown. */

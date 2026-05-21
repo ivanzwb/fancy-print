@@ -13,6 +13,7 @@ import * as fs from 'node:fs';
 import type { JobRecord, JobState } from './job.types';
 import { JobStateStoreService } from './job-state-store.service';
 import { PipelineQueueService } from './pipeline-queue.service';
+import { S3AudioStagingService } from '../adapters/s3-audio-staging.service';
 import { VendorFacadeService } from '../adapters/vendor-facade.service';
 import { MqttService } from '../mqtt/mqtt.service';
 import { PolicyService } from '../policy/policy.service';
@@ -37,6 +38,8 @@ function capAudioBase64(s: string | undefined): string | undefined {
 function cloneJobForApi(job: JobRecord): JobRecord {
   const j = { ...job };
   delete j.audio_base64;
+  delete j.audio_s3_key;
+  delete j.audio_s3_bucket;
   delete j.audio_chunk_buffers;
   delete j.pending_preview_image_url;
   delete j.pending_preview_image_base64;
@@ -62,6 +65,7 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
     private readonly policy: PolicyService,
     private readonly vendorFacade: VendorFacadeService,
     private readonly pipelineQueue: PipelineQueueService,
+    private readonly s3Audio: S3AudioStagingService,
   ) {}
 
   onApplicationBootstrap() {
@@ -255,6 +259,27 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
     return job.preview_url;
   }
 
+  /** Shared: stage audio to S3 when configured, or fall back to inline base64. */
+  private async storeAudioRef(
+    job: JobRecord,
+    audioBase64: string,
+  ): Promise<void> {
+    // When S3 is available, upload immediately and keep only the key in memory.
+    if (this.s3Audio.isConfigured()) {
+      const staged = await this.s3Audio.stageAudio(job.job_id, audioBase64);
+      if (staged) {
+        job.audio_s3_key = staged.key;
+        job.audio_s3_bucket = staged.bucket;
+        delete job.audio_base64;
+        return;
+      }
+      // S3 upload failed — fall through to inline storage
+    }
+    job.audio_base64 = audioBase64;
+    delete job.audio_s3_key;
+    delete job.audio_s3_bucket;
+  }
+
   async attachAudio(
     jobId: string,
     deviceId: string,
@@ -278,7 +303,9 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
       });
     }
     const capped = capAudioBase64(audioBase64);
-    if (capped) job.audio_base64 = capped;
+    if (capped) {
+      await this.storeAudioRef(job, capped);
+    }
     delete job.chunks_max_seq;
     delete job.audio_chunk_buffers;
     job.state = 'audio_received';
@@ -363,7 +390,9 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
         const merged = this.mergeAudioChunks(job);
         delete job.chunks_max_seq;
         delete job.audio_chunk_buffers;
-        if (merged) job.audio_base64 = merged;
+        if (merged) {
+          await this.storeAudioRef(job, merged);
+        }
         job.state = 'audio_received';
         job.updated_at = new Date().toISOString();
         await this.store.setJob(job);
