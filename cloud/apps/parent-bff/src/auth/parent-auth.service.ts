@@ -107,6 +107,18 @@ export class ParentAuthService {
     }
   }
 
+  /**
+   * Issue tokens for an OIDC-authenticated user without password validation.
+   * Called by OidcService after successful OIDC callback.
+   */
+  async issueTokensFromOidc(
+    sub: string,
+    email: string,
+    household_id: string,
+  ): Promise<ParentTokenResponse> {
+    return this.issueTokens(sub, email, household_id);
+  }
+
   private async issueTokens(
     sub: string,
     email: string,

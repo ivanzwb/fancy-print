@@ -22,6 +22,11 @@ async function bootstrap() {
   });
 
   const fastify = app.getHttpAdapter().getInstance();
+  // Register @fastify/cookie for OIDC PKCE state cookies
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+  const fc = require('@fastify/cookie');
+  const fastifyCookie = typeof fc === 'function' ? fc : fc.default;
+  await fastify.register(fastifyCookie);
   fastify.addHook('onRequest', (req, reply, done) => {
     const raw = req.headers['x-request-id'];
     const id =
