@@ -47,9 +47,9 @@ describe('PipelineQueueService', () => {
       const blocker = () => new Promise<void>(() => { /* never resolve */ });
       const never = () => new Promise<void>(() => { /* never start */ });
 
-      service.enqueue('a', blocker);
-      service.enqueue('b', blocker);
-      service.enqueue('c', never);
+      service.enqueue('a', 'dev-1', blocker);
+      service.enqueue('b', 'dev-1', blocker);
+      service.enqueue('c', 'dev-1', never);
 
       expect((service as any).running).toBe(2);
       expect((service as any).pending.length).toBe(1);
@@ -60,7 +60,7 @@ describe('PipelineQueueService', () => {
       const service = createService();
       const fn = jest.fn();
       service.onModuleDestroy();
-      service.enqueue('x', fn);
+      service.enqueue('x', 'dev-1', fn);
       expect(fn).not.toHaveBeenCalled();
     });
   });
@@ -74,8 +74,8 @@ describe('PipelineQueueService', () => {
           setTimeout(() => { resolved++; resolve(); }, 5);
         });
 
-      service.enqueue('a', slow);
-      service.enqueue('b', slow);
+      service.enqueue('a', 'dev-1', slow);
+      service.enqueue('b', 'dev-1', slow);
       await new Promise((r) => setImmediate(r));
 
       await service.onModuleDestroy();

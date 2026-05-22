@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -12,7 +13,10 @@ import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import type { JobRecord, JobState } from './job.types';
 import { JobStateStoreService } from './job-state-store.service';
-import { PipelineQueueService } from './pipeline-queue.service';
+import {
+  PIPELINE_QUEUE,
+  type IPipelineQueue,
+} from './pipeline-queue.token';
 import { S3AudioStagingService } from '../adapters/s3-audio-staging.service';
 import { VendorFacadeService } from '../adapters/vendor-facade.service';
 import { MqttService } from '../mqtt/mqtt.service';
@@ -65,7 +69,7 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
     private readonly mqtt: MqttService,
     private readonly policy: PolicyService,
     private readonly vendorFacade: VendorFacadeService,
-    private readonly pipelineQueue: PipelineQueueService,
+    @Inject(PIPELINE_QUEUE) private readonly pipelineQueue: IPipelineQueue,
     private readonly s3Audio: S3AudioStagingService,
   ) {}
 
@@ -221,40 +225,46 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
       return cloneJobForApi({ ...job });
     }
 
-    // Enqueue background advancement and return current state immediately
-    this.pipelineQueue.enqueue(jobId, async () => {
-      try {
-        if (this.store.usesRedis()) {
-          const token = await this.store.acquireJobAdvanceLock(jobId);
-          if (token) {
-            try {
-              const latest = await this.store.getJob(jobId);
-              if (!latest) return;
-              this.assertDevice(latest, deviceId);
-              await this.advancePipelineAsync(latest);
-              await this.store.setJob(latest);
-              this.mqtt.publishJobStatus(latest);
-            } finally {
-              await this.store.releaseJobAdvanceLock(jobId, token);
-            }
-          }
-          // Lock not acquired — another replica is advancing, skip
-        } else {
-          const working = await this.requireJob(jobId);
-          await this.advancePipelineAsync(working);
-          await this.store.setJob(working);
-          this.mqtt.publishJobStatus(working);
-          this.schedulePersist();
-        }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        this.logger.error(
-          `Background advancement failed job_id=${jobId}: ${msg}`,
-        );
-      }
-    });
+    this.pipelineQueue.enqueue(jobId, deviceId, () =>
+      this.runBackgroundAdvance(jobId, deviceId),
+    );
 
     return cloneJobForApi({ ...job });
+  }
+
+  /**
+   * 由流水线队列（进程内或 BullMQ worker）调用：执行一档 vendor 推进。
+   * @see GitHub #13（水平扩展时 BullMQ 多 worker 共享此逻辑）
+   */
+  async runBackgroundAdvance(jobId: string, deviceId: string): Promise<void> {
+    try {
+      if (this.store.usesRedis()) {
+        const token = await this.store.acquireJobAdvanceLock(jobId);
+        if (token) {
+          try {
+            const latest = await this.store.getJob(jobId);
+            if (!latest) return;
+            this.assertDevice(latest, deviceId);
+            await this.advancePipelineAsync(latest);
+            await this.store.setJob(latest);
+            this.mqtt.publishJobStatus(latest);
+          } finally {
+            await this.store.releaseJobAdvanceLock(jobId, token);
+          }
+        }
+      } else {
+        const working = await this.requireJob(jobId);
+        await this.advancePipelineAsync(working);
+        await this.store.setJob(working);
+        this.mqtt.publishJobStatus(working);
+        this.schedulePersist();
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(
+        `Background advancement failed job_id=${jobId}: ${msg}`,
+      );
+    }
   }
 
   async getArtifactRedirectUrl(

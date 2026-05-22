@@ -3,6 +3,7 @@ import {
   Logger,
   OnModuleDestroy,
 } from '@nestjs/common';
+import type { IPipelineQueue } from './pipeline-queue.token';
 
 /**
  * In-process background task queue for pipeline advancement.
@@ -12,14 +13,17 @@ import {
  * slot. On shutdown, waits for in-flight tasks to complete.
  *
  * Env: `PIPELINE_QUEUE_CONCURRENCY` (default 2, max 16).
+ *
+ * 水平扩展请改用 {@link PipelineQueueBullmqService}（`PIPELINE_QUEUE_BACKEND=bullmq` + `REDIS_URL`），见 GitHub #13。
  */
 @Injectable()
-export class PipelineQueueService implements OnModuleDestroy {
+export class PipelineQueueService implements IPipelineQueue, OnModuleDestroy {
   private readonly logger = new Logger(PipelineQueueService.name);
   private readonly maxConcurrency: number;
   private running = 0;
   private readonly pending: Array<{
     jobId: string;
+    deviceId: string;
     fn: () => Promise<void>;
   }> = [];
   private destroyed = false;
@@ -40,14 +44,14 @@ export class PipelineQueueService implements OnModuleDestroy {
    * Returns immediately — the caller can return the HTTP response without
    * waiting for the vendor calls to complete.
    */
-  enqueue(jobId: string, fn: () => Promise<void>): void {
+  enqueue(jobId: string, deviceId: string, fn: () => Promise<void>): void {
     if (this.destroyed) {
       this.logger.warn(
-        `PipelineQueue destroyed, dropping job_id=${jobId}`,
+        `PipelineQueue destroyed, dropping job_id=${jobId} device_id=${deviceId}`,
       );
       return;
     }
-    this.pending.push({ jobId, fn });
+    this.pending.push({ jobId, deviceId, fn });
     this.processNext();
   }
 
@@ -64,7 +68,7 @@ export class PipelineQueueService implements OnModuleDestroy {
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
         this.logger.error(
-          `Pipeline background job_id=${item.jobId} failed: ${msg}`,
+          `Pipeline background job_id=${item.jobId} device_id=${item.deviceId} failed: ${msg}`,
         );
       })
       .finally(() => {

@@ -1,0 +1,8 @@
+.git
+**/.DS_Store
+**/Thumbs.db
+cloud/node_modules
+cloud/apps/*/node_modules
+cloud/packages/*/node_modules
+**/dist
+**/*.tsbuildinfo

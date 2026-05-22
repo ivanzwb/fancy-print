@@ -1,0 +1,47 @@
+# 本地 / 演示：Redis + device-api（HTTP）+ 可选纯 BullMQ Worker
+#
+# 在仓库根目录：
+#   docker compose -f cloud/deploy/compose/docker-compose.device-api.yml up --build
+#
+# API: http://127.0.0.1:3001/health
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  device-api:
+    build:
+      context: ../../..
+      dockerfile: cloud/deploy/docker/Dockerfile.device-api
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3001"
+      REDIS_URL: redis://redis:6379
+      PIPELINE_QUEUE_BACKEND: bullmq
+      PIPELINE_QUEUE_CONCURRENCY: "8"
+      DEVICE_JWT_ACCESS_SECRET: ${DEVICE_JWT_ACCESS_SECRET:-dev-device-access-secret}
+      DEVICE_JWT_REFRESH_SECRET: ${DEVICE_JWT_REFRESH_SECRET:-dev-device-refresh-secret}
+    depends_on:
+      - redis
+
+  # 仅消费 BullMQ 队列（无 HTTP）；与 device-api 共用镜像与 Redis
+  device-api-pipeline-worker:
+    build:
+      context: ../../..
+      dockerfile: cloud/deploy/docker/Dockerfile.device-api
+    environment:
+      NODE_ENV: production
+      REDIS_URL: redis://redis:6379
+      PIPELINE_QUEUE_BACKEND: bullmq
+      PIPELINE_QUEUE_CONCURRENCY: "16"
+      PIPELINE_WORKER_STANDALONE: "1"
+      DEVICE_JWT_ACCESS_SECRET: ${DEVICE_JWT_ACCESS_SECRET:-dev-device-access-secret}
+      DEVICE_JWT_REFRESH_SECRET: ${DEVICE_JWT_REFRESH_SECRET:-dev-device-refresh-secret}
+    command: ["node", "apps/device-api/dist/main.js"]
+    depends_on:
+      - redis

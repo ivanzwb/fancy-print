@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { JobsService } from './jobs.service';
 import { JobStateStoreService } from './job-state-store.service';
-import { PipelineQueueService } from './pipeline-queue.service';
+import { PIPELINE_QUEUE, type IPipelineQueue } from './pipeline-queue.token';
 import { S3AudioStagingService } from '../adapters/s3-audio-staging.service';
 import { VendorFacadeService } from '../adapters/vendor-facade.service';
 import { MqttService } from '../mqtt/mqtt.service';
@@ -32,7 +32,7 @@ describe('JobsService', () => {
   let mqtt: jest.Mocked<MqttService>;
   let policy: jest.Mocked<PolicyService>;
   let vendorFacade: jest.Mocked<VendorFacadeService>;
-  let pipelineQueue: jest.Mocked<PipelineQueueService>;
+  let pipelineQueue: jest.Mocked<IPipelineQueue>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -83,7 +83,7 @@ describe('JobsService', () => {
           },
         },
         {
-          provide: PipelineQueueService,
+          provide: PIPELINE_QUEUE,
           useValue: {
             enqueue: jest.fn(),
             onModuleDestroy: jest.fn(),
@@ -106,7 +106,7 @@ describe('JobsService', () => {
     mqtt = module.get(MqttService) as jest.Mocked<MqttService>;
     policy = module.get(PolicyService) as jest.Mocked<PolicyService>;
     vendorFacade = module.get(VendorFacadeService) as jest.Mocked<VendorFacadeService>;
-    pipelineQueue = module.get(PipelineQueueService) as jest.Mocked<PipelineQueueService>;
+    pipelineQueue = module.get(PIPELINE_QUEUE) as jest.Mocked<IPipelineQueue>;
   });
 
   describe('createJob', () => {
@@ -213,7 +213,7 @@ describe('JobsService', () => {
   describe('advanceJob', () => {
     it('should enqueue background pipeline for audio_received job', async () => {
       store.getJob.mockResolvedValue(mockJob({ state: 'audio_received' }));
-      pipelineQueue.enqueue.mockImplementation((_id, fn) => {
+      pipelineQueue.enqueue.mockImplementation((_jobId, _deviceId, fn) => {
         fn().catch(() => {});
       });
 

@@ -26,7 +26,7 @@ interface PersistedJobsBlob {
 /**
  * Job 与幂等键存储：**内存**（默认）或 **`REDIS_URL`**（多 `device-api` 实例共享）。
  *
- * **跨副本推进锁**：`GET /v1/jobs/{id}` 在 Redis 模式下对 `job:adv:{id}` 使用 **SET NX + 随机 token**，释放时用 **Lua** 校验 token 再 DEL。
+ * **跨副本推进锁**：`POST /v1/jobs/{id}/advance` 在 Redis 模式下对 `job:adv:{id}` 使用 **SET NX + 随机 token**，释放时用 **Lua** 校验 token 再 DEL。
  *
  * **冷迁移 / 导出**：`JOB_REDIS_IMPORT_FILE=1` + `JOBS_PERSISTENCE_PATH` 在连上 Redis 后把 JSON 灌入；`JOB_FILE_EXPORT_ON_SHUTDOWN=1` 在退出前 **SCAN** 写出 JSON（`JOB_FILE_EXPORT_PATH` 可选）。
  */

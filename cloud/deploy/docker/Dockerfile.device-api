@@ -1,0 +1,22 @@
+# fancy-print — device-api 镜像（workspace 构建）
+#
+# 在仓库根目录执行：
+#   docker build -f cloud/deploy/docker/Dockerfile.device-api -t fancy-print-device-api:latest .
+#
+# 运行时须注入密钥与 Redis 等环境变量（见 cloud/deploy/README.md）。
+
+FROM node:22-bookworm-slim
+WORKDIR /opt/cloud
+
+COPY cloud/package.json cloud/package-lock.json ./
+COPY cloud ./
+
+RUN npm ci \
+  && npm run build -w @fancy-print/config \
+  && npm run build -w device-api
+
+ENV NODE_ENV=production
+WORKDIR /opt/cloud
+EXPOSE 3001
+
+CMD ["node", "apps/device-api/dist/main.js"]

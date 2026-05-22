@@ -23,7 +23,20 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
       this.logger.log('MQTT_URL not set; job status publish disabled');
       return;
     }
-    this.client = connect(url);
+    const reconnectMs = Math.min(
+      Math.max(Number(process.env.MQTT_RECONNECT_MS ?? 1000), 500),
+      60_000,
+    );
+    const clean = !['0', 'false', 'no'].includes(
+      (process.env.MQTT_SESSION_CLEAN ?? '1').toLowerCase(),
+    );
+    this.client = connect(url, {
+      reconnectPeriod: reconnectMs,
+      connectTimeout: 30_000,
+      resubscribe: true,
+      clean,
+      queueQoSZero: false,
+    });
     this.client.on('error', (err) =>
       this.logger.warn(`MQTT client error: ${err.message}`),
     );

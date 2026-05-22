@@ -1,0 +1,76 @@
+# 示例：device-api Deployment + Service（需自行替换镜像、Secret、Ingress）
+# 与 BullMQ 水平扩展对齐：多副本共享同一 REDIS_URL，PIPELINE_QUEUE_BACKEND=bullmq。
+#
+# kubectl apply -f cloud/deploy/k8s/device-api.deployment.yaml
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: device-api-env
+data:
+  NODE_ENV: "production"
+  HOST: "0.0.0.0"
+  PORT: "3001"
+  PIPELINE_QUEUE_BACKEND: "bullmq"
+  PIPELINE_QUEUE_CONCURRENCY: "8"
+  # REDIS_URL 请用 Secret 注入，勿明文写在此 ConfigMap
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: device-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: device-api
+  template:
+    metadata:
+      labels:
+        app: device-api
+    spec:
+      containers:
+        - name: device-api
+          image: fancy-print-device-api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3001
+          envFrom:
+            - configMapRef:
+                name: device-api-env
+          env:
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: device-api-secrets
+                  key: redis-url
+                  optional: true
+            - name: DEVICE_JWT_ACCESS_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: device-api-secrets
+                  key: device-jwt-access-secret
+                  optional: true
+            - name: DEVICE_JWT_REFRESH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: device-api-secrets
+                  key: device-jwt-refresh-secret
+                  optional: true
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: device-api
+spec:
+  selector:
+    app: device-api
+  ports:
+    - port: 3001
+      targetPort: 3001

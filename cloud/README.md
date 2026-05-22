@@ -34,6 +34,8 @@ npm run build
 
 **测试（`device-api`）**：`npm run test -w device-api`（单元 `*.spec.ts` + 集成 `*.e2e-spec.ts`，桩厂商、无 Redis/MQTT）。
 
+**高并发 / 水平扩展（[GitHub #13](https://github.com/ivanzwb/fancy-print/issues/13)）**：多副本下设置 **`PIPELINE_QUEUE_BACKEND=bullmq`**（须已有 **`REDIS_URL`**）可将流水线后台任务放入 **BullMQ** 队列，各副本内嵌 Worker 竞争消费；**`PIPELINE_QUEUE_CONCURRENCY`** 在 BullMQ 下为 worker 并行度（默认 **8**，上限 **128**）。单机多核可选用 **`DEVICE_API_CLUSTER_WORKERS=N`** 并执行 **`npm run start:cluster -w device-api`**（多进程仍监听同一 `PORT` 时须由外部 LB/编排分配端口）。MQTT 已启用 **`reconnectPeriod`**（**`MQTT_RECONNECT_MS`**，默认 1000）与 **`MQTT_SESSION_CLEAN`**（控制 `clean` session）。
+
 健康检查：`GET /health`（各服务一致）。`device-api` 业务在 **`/v1/*`**；`parent-bff` 在 **`/v1/parent/*`**；两者均暴露 **`GET /metrics`**（Prometheus 文本，`device-api` / `gateway`）。
 
 **可观测**：各服务对请求生成或透传 **`X-Request-Id`**；若客户端提供 **`traceparent` / `tracestate`**（W3C Trace Context），**网关与各 API** 在响应中回显并 **由网关转发至上游**（与 doc/4 **§6** 追踪诉求对齐）。
@@ -77,7 +79,7 @@ npm run build
 
 **mTLS 换 JWT**：`device-api` 设 **`MTLS_HEADER_TRUST=1`**、**`TRUSTED_PROXY_IPS`**、**`MTLS_ALLOWED_DEVICE_IDS_JSON`** 或 **`MTLS_TRUST_REGISTERED_DEVICES=1`**；设备经网关带 **`x-device-id-from-mtls`** 调用 **`POST /v1/auth/mtls`**。
 
-**Job 状态多实例**：设置 **`REDIS_URL`** 后，Job 与 **`Idempotency-Key`** 映射写入 Redis（**`REDIS_KEY_PREFIX`**，默认 `fp:`；**`JOB_REDIS_TTL_SEC`**，默认 604800）。**`GET /v1/jobs/{id}`** 在 Redis 下对同一 `job_id` 使用 **`SET NX` 推进锁**（**`JOB_ADVANCE_LOCK_TTL_SEC`** / **`JOB_ADVANCE_LOCK_WAIT_MS`**），释放用 Lua 防误删。冷迁移：**`JOB_REDIS_IMPORT_FILE=1`** + **`JOBS_PERSISTENCE_PATH`** 在启动时灌入 Redis（可选 **`JOB_REDIS_IMPORT_OVERWRITE=1`**）。关机导出：**`JOB_FILE_EXPORT_ON_SHUTDOWN=1`**，**`SCAN`** 写出 JSON 至 **`JOB_FILE_EXPORT_PATH`** 或 **`JOBS_PERSISTENCE_PATH`**。
+**Job 状态多实例**：设置 **`REDIS_URL`** 后，Job 与 **`Idempotency-Key`** 映射写入 Redis（**`REDIS_KEY_PREFIX`**，默认 `fp:`；**`JOB_REDIS_TTL_SEC`**，默认 604800）。**`GET /v1/jobs/{id}`** 为只读查询；**`POST /v1/jobs/{id}/advance`** 在 Redis 下对同一 `job_id` 取 **`SET NX` 推进锁**（**`JOB_ADVANCE_LOCK_TTL_SEC`** / **`JOB_ADVANCE_LOCK_WAIT_MS`**），释放用 Lua 防误删。冷迁移：**`JOB_REDIS_IMPORT_FILE=1`** + **`JOBS_PERSISTENCE_PATH`** 在启动时灌入 Redis（可选 **`JOB_REDIS_IMPORT_OVERWRITE=1`**）。关机导出：**`JOB_FILE_EXPORT_ON_SHUTDOWN=1`**，**`SCAN`** 写出 JSON 至 **`JOB_FILE_EXPORT_PATH`** 或 **`JOBS_PERSISTENCE_PATH`**。**水平部署与纯 BullMQ Worker**（无 HTTP）：见 [`deploy/README.md`](deploy/README.md)。
 
 ### 家长 BFF（`parent-bff`）
 
