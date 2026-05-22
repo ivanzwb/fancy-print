@@ -6,11 +6,12 @@ import {
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
 import { randomUUID } from 'node:crypto';
-import { parseBaseEnv, HttpExceptionFilter } from '@fancy-print/config';
+import { parseBaseEnv, HttpExceptionFilter, initAuditLog } from '@fancy-print/config';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   parseBaseEnv(process.env); // fail-fast on missing critical env vars
+  initAuditLog(); // initialise audit log from AUDIT_LOG_PATH
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter(),

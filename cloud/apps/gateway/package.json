@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@fancy-print/config": "*",
+    "@fastify/rate-limit": "^10.3.0",
     "@fastify/reply-from": "^12.6.2",
     "fastify": "^5.2.1",
     "prom-client": "^15.1.3"

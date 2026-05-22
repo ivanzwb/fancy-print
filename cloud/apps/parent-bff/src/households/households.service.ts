@@ -1,12 +1,16 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   Logger,
   OnModuleDestroy,
   OnModuleInit,
+  Optional,
 } from '@nestjs/common';
 import { createClient, type RedisClientType } from 'redis';
+import { MqttService } from '../mqtt/mqtt.service';
+import { writeAuditLog } from '@fancy-print/config';
 
 export interface HouseholdDevice {
   device_id: string;
@@ -29,6 +33,7 @@ export interface ApprovalRecord {
 
 export interface JobEntry {
   job_id: string;
+  device_id?: string;
   content_mode: string;
   state: string;
   created_at: string;
@@ -53,6 +58,10 @@ export interface JobEntry {
 export class HouseholdsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(HouseholdsService.name);
   private redis?: RedisClientType;
+
+  constructor(
+    @Optional() @Inject(MqttService) private readonly mqtt?: MqttService,
+  ) {}
 
   // ── In-memory fallbacks ──────────────────────────────────────────
   private readonly memHouseholdDevices = new Map<
@@ -286,6 +295,25 @@ export class HouseholdsService implements OnModuleInit, OnModuleDestroy {
       this.memPolicies.set(householdId, { ...next });
     }
 
+    // Push MQTT policy notification to all household devices
+    const devices = await this.getDevices(householdId);
+    if (this.mqtt?.connected) {
+      for (const d of devices) {
+        this.mqtt.publishPolicy(d.device_id, next.version, {
+          remote_print_gate: next.remote_print_gate,
+          tier: next.tier,
+        });
+      }
+    }
+
+    writeAuditLog({
+      service: 'parent-bff',
+      event: 'policy_changed',
+      household_id: householdId,
+      outcome: 'ok',
+      details: { version: next.version, remote_print_gate: next.remote_print_gate },
+    });
+
     return {
       household_id: householdId,
       version: next.version,
@@ -324,6 +352,7 @@ export class HouseholdsService implements OnModuleInit, OnModuleDestroy {
     householdId: string,
     jobId: string,
     idempotencyKey: string | undefined,
+    deviceId?: string,
   ): Promise<Record<string, unknown>> {
     const key = this.requireIdempotencyKey('approve', idempotencyKey);
     const ido = this.idoKey('approve', householdId, jobId, key);
@@ -357,6 +386,20 @@ export class HouseholdsService implements OnModuleInit, OnModuleDestroy {
       this.memIdempotency.set(ido, result);
     }
 
+    // Push MQTT notification to device
+    if (deviceId && this.mqtt?.connected) {
+      this.mqtt.publishApproval(deviceId, jobId, 'approved');
+    }
+
+    writeAuditLog({
+      service: 'parent-bff',
+      event: 'job_approved',
+      job_id: jobId,
+      household_id: householdId,
+      device_id: deviceId,
+      outcome: 'ok',
+    });
+
     return result;
   }
 
@@ -364,6 +407,7 @@ export class HouseholdsService implements OnModuleInit, OnModuleDestroy {
     householdId: string,
     jobId: string,
     idempotencyKey: string | undefined,
+    deviceId?: string,
   ): Promise<Record<string, unknown>> {
     const key = this.requireIdempotencyKey('reject', idempotencyKey);
     const ido = this.idoKey('reject', householdId, jobId, key);
@@ -396,6 +440,20 @@ export class HouseholdsService implements OnModuleInit, OnModuleDestroy {
       this.memApprovals.set(householdId, list);
       this.memIdempotency.set(ido, result);
     }
+
+    // Push MQTT notification to device
+    if (deviceId && this.mqtt?.connected) {
+      this.mqtt.publishApproval(deviceId, jobId, 'rejected');
+    }
+
+    writeAuditLog({
+      service: 'parent-bff',
+      event: 'job_rejected',
+      job_id: jobId,
+      household_id: householdId,
+      device_id: deviceId,
+      outcome: 'ok',
+    });
 
     return result;
   }

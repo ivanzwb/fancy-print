@@ -1,5 +1,6 @@
 import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import replyFrom from '@fastify/reply-from';
+import rateLimit from '@fastify/rate-limit';
 import { randomUUID } from 'node:crypto';
 import tls from 'node:tls';
 import { Registry, collectDefaultMetrics } from 'prom-client';
@@ -72,6 +73,28 @@ async function main() {
 
   await app.register(replyFrom, {
     undici: { connections: 128, pipelining: 1 },
+  });
+
+  // ── Rate limiting ────────────────────────────────────────────────
+  const rateLimitMax = Math.max(
+    1,
+    Number(process.env.GATEWAY_RATE_LIMIT_MAX ?? 100),
+  );
+  await app.register(rateLimit, {
+    max: rateLimitMax,
+    timeWindow: '1 minute',
+    keyGenerator: (req) => {
+      // Prefer device/client id from headers for more granular limits
+      const deviceId = req.headers['x-device-id-from-mtls'];
+      if (typeof deviceId === 'string' && deviceId.trim()) return deviceId.trim();
+      return req.ip;
+    },
+    allowList: (req) => {
+      const url = req.url;
+      // Health check & metrics are always allowed
+      if (url === '/health' || url === '/metrics') return true;
+      return false;
+    },
   });
 
   app.addHook('onRequest', async (req, reply) => {

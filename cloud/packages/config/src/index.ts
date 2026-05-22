@@ -19,6 +19,7 @@ export const baseEnvSchema = z.object({
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).optional(),
   S3_AUDIO_BUCKET: z.string().optional(),
   S3_PREVIEW_BUCKET: z.string().optional(),
+  AUDIT_LOG_PATH: z.string().optional(),
 });
 
 export type BaseEnv = z.infer<typeof baseEnvSchema>;
@@ -39,3 +40,7 @@ export function parseBaseEnv(env: NodeJS.ProcessEnv): BaseEnv {
 
 // ── 共享 HTTP 异常过滤器 ──────────────────────────────────────────
 export { HttpExceptionFilter } from './common/http-exception.filter';
+
+// ── 审计日志 ──────────────────────────────────────────────────────
+export { writeAuditLog, initAuditLog, closeAuditLog, stripPii } from './audit-logger';
+export type { AuditEntry } from './audit-logger';

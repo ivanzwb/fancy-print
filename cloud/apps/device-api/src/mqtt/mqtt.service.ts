@@ -43,6 +43,15 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
           }
         });
       }
+
+      // Subscribe to parent-bff approval notifications for job state advancement
+      this.client!.subscribe('devices/+/jobs/+/approval', { qos: 1 }, (err) => {
+        if (err) {
+          this.logger.warn(`approval subscribe failed: ${err.message}`);
+        } else {
+          this.logger.log('Subscribed devices/+/jobs/+/approval');
+        }
+      });
     });
     this.client.on('message', (topic, payload) => {
       this.onBrokerMessage(topic, payload);
@@ -94,6 +103,18 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
   }
 
   private onBrokerMessage(topic: string, payload: Buffer) {
+    if (/^devices\/[^/]+\/jobs\/[^/]+\/approval$/.test(topic)) {
+      const deviceId = topic.split('/')[1] ?? '?';
+      try {
+        const msg = JSON.parse(payload.toString('utf8'));
+        this.logger.log(
+          `approval device_id=${deviceId} job_id=${msg.job_id} status=${msg.status}`,
+        );
+      } catch {
+        this.logger.warn(`approval_mqtt invalid payload from ${topic}`);
+      }
+      return;
+    }
     if (!/^devices\/[^/]+\/telemetry$/.test(topic)) return;
 
     if (payload.length > TELEMETRY_MAX_BYTES) {

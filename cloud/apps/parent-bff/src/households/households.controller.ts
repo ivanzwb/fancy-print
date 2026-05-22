@@ -116,9 +116,10 @@ export class HouseholdsController {
     @Param('jobId') jobId: string,
     @CurrentParent() parent: ParentPrincipal,
     @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Body() body: { device_id?: string },
   ) {
     this.assertHousehold(householdId, parent);
-    return this.service.approve(householdId, jobId, idempotencyKey);
+    return this.service.approve(householdId, jobId, idempotencyKey, body.device_id);
   }
 
   @Post('jobs/:jobId/reject')
@@ -127,8 +128,9 @@ export class HouseholdsController {
     @Param('jobId') jobId: string,
     @CurrentParent() parent: ParentPrincipal,
     @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Body() body: { device_id?: string },
   ) {
     this.assertHousehold(householdId, parent);
-    return this.service.reject(householdId, jobId, idempotencyKey);
+    return this.service.reject(householdId, jobId, idempotencyKey, body.device_id);
   }
 }

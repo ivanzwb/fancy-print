@@ -17,7 +17,7 @@ const config: Config = {
   coverageDirectory: '../coverage',
   testEnvironment: 'node',
   moduleNameMapper: {
-    '@fancy-print/config': '<rootDir>/../../packages/config/src',
+    '@fancy-print/config': '<rootDir>/../../../packages/config/src',
   },
 };
 

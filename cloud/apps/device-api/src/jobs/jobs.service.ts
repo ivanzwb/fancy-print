@@ -17,6 +17,7 @@ import { S3AudioStagingService } from '../adapters/s3-audio-staging.service';
 import { VendorFacadeService } from '../adapters/vendor-facade.service';
 import { MqttService } from '../mqtt/mqtt.service';
 import { PolicyService } from '../policy/policy.service';
+import { writeAuditLog } from '@fancy-print/config';
 
 const PIPELINE_AFTER_AUDIO: JobState[] = [
   'audio_received',
@@ -172,6 +173,16 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
 
     this.mqtt.publishJobStatus(job);
     this.schedulePersist();
+
+    writeAuditLog({
+      service: 'device-api',
+      event: 'job_created',
+      job_id: jobId,
+      device_id: input.device_id,
+      outcome: 'ok',
+      details: { content_mode: input.content_mode, state: 'created' },
+    });
+
     return cloneJobForApi({ ...job });
   }
 
@@ -464,6 +475,15 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
     await this.store.setJob(job);
     this.mqtt.publishJobStatus(job);
     this.schedulePersist();
+
+    writeAuditLog({
+      service: 'device-api',
+      event: 'print_acknowledged',
+      job_id: jobId,
+      device_id: deviceId,
+      outcome: 'ok',
+    });
+
     return {
       job_id: jobId,
       accepted: true,
@@ -511,6 +531,7 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
     const next = PIPELINE_AFTER_AUDIO[idx + 1] as JobState;
     job.state = next;
     job.updated_at = now.toISOString();
+    let outcome = 'ok';
 
     try {
       if (next === 'asr_complete') {
@@ -519,13 +540,13 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
         const mod = await this.vendorFacade.moderateTranscript(job);
         if (!mod.ok) {
           this.markFailed(job, mod.reason_code);
-          return;
+          outcome = 'failed';
         }
       } else if (next === 'image_generation') {
         const gen = await this.vendorFacade.runImageGeneration(job);
         if (!gen.ok) {
           this.markFailed(job, gen.reason_code);
-          return;
+          outcome = 'failed';
         }
       } else if (next === 'preview_ready') {
         const p = await this.vendorFacade.finalizePreview(job, now.getTime());
@@ -534,7 +555,19 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
       }
     } catch {
       this.markFailed(job, 'PIPELINE_UPSTREAM_ERROR');
+      outcome = 'failed';
     }
+
+    // Audit: log pipeline advancement (sensitive fields like transcript stripped by stripPii)
+    writeAuditLog({
+      service: 'device-api',
+      event: 'job_advanced',
+      job_id: job.job_id,
+      device_id: job.device_id,
+      outcome,
+      error_code: job.error_code ?? undefined,
+      details: { from_state: PIPELINE_AFTER_AUDIO[idx], to_state: next },
+    });
   }
 
   private markFailed(job: JobRecord, code: string) {
