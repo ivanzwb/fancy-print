@@ -1,28 +1,34 @@
 asyncapi: 2.6.0
 info:
   title: fancy-print cloud ↔ device (MQTT subset)
-  version: 0.2.0
+  version: 0.3.0
   description: >
-    Subset aligned with doc/4 §2.4.3. Broker URL is deployment-specific; payloads are JSON.
+    Subset aligned with doc/4 §2.4.3 and §2.2.1. Broker URL is deployment-specific; payloads are JSON.
 defaultContentType: application/json
 servers:
   production:
     url: mqtts://mqtt.example.com
     protocol: mqtts
 channels:
+  # ── Cloud → Device ────────────────────────────────────────────────
+
   devices/{deviceId}/jobs/{jobId}/status:
-    description: Cloud pushes job state updates to the device
+    description: Cloud pushes job state updates to the device (published by device-api MqttService)
     parameters:
       deviceId:
         schema: { type: string }
       jobId:
         schema: { type: string }
     subscribe:
+      operationId: onJobStatus
+      summary: Receive job pipeline state changes
       message:
         payload:
           type: object
           properties:
-            state: { type: string }
+            state:
+              type: string
+              enum: [created, audio_received, asr_complete, moderation_passed, image_generation, preview_ready, print_acknowledged, failed]
             preview_url: { type: string, nullable: true }
             preview_url_ttl:
               type: integer
@@ -36,12 +42,15 @@ channels:
             chunks_max_seq: { type: integer, nullable: true }
             error_code: { type: string, nullable: true }
             policy_version: { type: integer, nullable: true }
+
   devices/{deviceId}/policy:
-    description: Cloud pushes policy updates
+    description: Cloud pushes policy updates (published by parent-bff or device-api MqttService)
     parameters:
       deviceId:
         schema: { type: string }
     subscribe:
+      operationId: onPolicyUpdate
+      summary: Receive household policy changes
       message:
         payload:
           type: object
@@ -49,15 +58,50 @@ channels:
             version: { type: integer }
             hash: { type: string }
             apply_after: { type: string, format: date-time }
-            body: { type: object, nullable: true }
+            body:
+              type: object
+              nullable: true
+              properties:
+                remote_print_gate: { type: boolean }
+                tier: { type: string }
+
+  devices/{deviceId}/jobs/{jobId}/approval:
+    description: >
+      Parent-BFF pushes approval/rejection result to the device after parent review
+      (published by parent-bff MqttService; subscribed by device-api MqttService).
+    parameters:
+      deviceId:
+        schema: { type: string }
+      jobId:
+        schema: { type: string }
+    subscribe:
+      operationId: onJobApproval
+      summary: Receive parent approval/rejection decision
+      message:
+        payload:
+          type: object
+          properties:
+            job_id: { type: string }
+            status:
+              type: string
+              enum: [approved, rejected]
+            decided_at:
+              type: string
+              format: date-time
+
+  # ── Device → Cloud ────────────────────────────────────────────────
+
   devices/{deviceId}/telemetry:
     description: >-
       Device (or dev tool) publishes de-sanitized summary; cloud `device-api` may subscribe when
       MQTT_SUBSCRIBE_TELEMETRY is set. HTTPS alternative POST /v1/devices/telemetry.
+      Forbidden fields: audio, recording, transcript_raw, speech (see telemetry-payload.guard.ts).
     parameters:
       deviceId:
         schema: { type: string }
     publish:
+      operationId: publishTelemetry
+      summary: Report device health and status (no PII)
       message:
         payload:
           type: object
@@ -65,3 +109,4 @@ channels:
             firmware_version: { type: string }
             rssi_dbm: { type: number, nullable: true }
             uptime_sec: { type: integer, minimum: 0, nullable: true }
+          additionalProperties: false
