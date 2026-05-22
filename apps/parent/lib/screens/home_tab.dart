@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import '../api/models.dart';
 import '../state/auth_controller.dart';
 
-/// 首页：设备摘要 + 最近动态片段（对应 doc/5 §4.2、§5.1「首页」）。
+/// 首页：设备摘要 + 最近动态 + 待审批卡片（对应 doc/5 §4.2、§5.1 首页）。
 class HomeTab extends StatefulWidget {
   const HomeTab({
     super.key,
@@ -12,12 +12,16 @@ class HomeTab extends StatefulWidget {
     required this.onGoToDevices,
     required this.onGoToTimeline,
     required this.onGoToPolicy,
+    this.onGoToApprovals,
   });
 
   final AuthController auth;
   final VoidCallback onGoToDevices;
   final VoidCallback onGoToTimeline;
   final VoidCallback onGoToPolicy;
+
+  /// When provided, shows a pending approvals card.
+  final VoidCallback? onGoToApprovals;
 
   @override
   State<HomeTab> createState() => HomeTabState();
@@ -38,11 +42,15 @@ class HomeTabState extends State<HomeTab> {
       c.listDevices(),
       c.listJobs(limit: 5),
       c.getPolicy(),
+      if (widget.onGoToApprovals != null) c.listPendingApprovals(),
     ]);
     return _HomeSummary(
       devices: results[0] as List<HouseholdDevice>,
       jobs: (results[1] as JobList).items,
       policy: results[2] as HouseholdPolicy,
+      pendingApprovals: widget.onGoToApprovals != null
+          ? (results[3] as List<ApprovalRecord>?) ?? const []
+          : null,
     );
   }
 
@@ -96,6 +104,10 @@ class HomeTabState extends State<HomeTab> {
                 _greeting(theme),
                 const SizedBox(height: 16),
                 _devicesSummary(theme, s),
+                if (s.pendingApprovals != null) ...[
+                  const SizedBox(height: 16),
+                  _pendingApprovalsCard(theme, s.pendingApprovals!),
+                ],
                 const SizedBox(height: 16),
                 _policySummary(theme, s.policy),
                 const SizedBox(height: 16),
@@ -223,6 +235,55 @@ class HomeTabState extends State<HomeTab> {
     );
   }
 
+  Widget _pendingApprovalsCard(
+      ThemeData theme, List<ApprovalRecord> approvals) {
+    final pending = approvals.where((a) => a.status == 'pending').length;
+    if (pending == 0) return const SizedBox.shrink();
+    return Card(
+      color: theme.colorScheme.errorContainer,
+      child: InkWell(
+        onTap: widget.onGoToApprovals,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor:
+                    theme.colorScheme.error.withValues(alpha: 0.15),
+                child: Icon(Icons.rate_review_outlined,
+                    color: theme.colorScheme.error),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('待审批任务',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.onErrorContainer,
+                        )),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$pending 项待处理',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onErrorContainer
+                            .withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right,
+                  color: theme.colorScheme.onErrorContainer),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _recentJobs(ThemeData theme, List<JobEntry> jobs) {
     return Card(
       child: Padding(
@@ -295,8 +356,10 @@ class _HomeSummary {
     required this.devices,
     required this.jobs,
     required this.policy,
+    this.pendingApprovals,
   });
   final List<HouseholdDevice> devices;
   final List<JobEntry> jobs;
   final HouseholdPolicy policy;
+  final List<ApprovalRecord>? pendingApprovals;
 }

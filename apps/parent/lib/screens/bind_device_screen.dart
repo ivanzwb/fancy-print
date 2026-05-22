@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../api/models.dart';
 import '../state/auth_controller.dart';
+import 'qr_scanner_screen.dart';
 
-/// 绑定设备：输入 6 位短码（或后续二维码扫描）。doc/5 §3.2。
+/// 绑定设备：输入 6 位短码或扫描设备二维码。doc/5 §3.2。
 class BindDeviceScreen extends StatefulWidget {
   const BindDeviceScreen({super.key, required this.auth});
 
@@ -69,7 +70,7 @@ class _BindDeviceScreenState extends State<BindDeviceScreen> {
                         Expanded(
                           child: Text(
                             '在整机「添加设备」界面获取 6 位短码，'
-                            '或对屏扫码（扫码功能将在后续版本上线）。',
+                            '或扫描设备二维码。',
                             style: theme.textTheme.bodyMedium,
                           ),
                         ),
@@ -101,6 +102,24 @@ class _BindDeviceScreenState extends State<BindDeviceScreen> {
                   Text(_error!,
                       style: TextStyle(color: theme.colorScheme.error)),
                 ],
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _submitting
+                      ? null
+                      : () async {
+                          final code = await Navigator.of(context).push<String>(
+                            MaterialPageRoute(
+                              builder: (_) => const QrScannerScreen(),
+                            ),
+                          );
+                          if (code != null && code.isNotEmpty) {
+                            _codeCtrl.text = code;
+                            _submit();
+                          }
+                        },
+                  icon: const Icon(Icons.qr_code_scanner),
+                  label: const Text('扫码绑定'),
+                ),
                 const SizedBox(height: 12),
                 FilledButton.icon(
                   onPressed: _submitting ? null : _submit,

@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../api/models.dart';
+import '../auth/oidc_service.dart';
 import '../state/auth_controller.dart';
 
-/// Email + password login. Designed for the dev-only `/v1/parent/auth/login`
-/// flow today; the same screen will host OIDC entry points later (see
-/// `doc/5. 家长端应用设计.md` §6).
+/// Email + password login, plus OIDC/SSO entry point.
+///
+/// See `doc/5. 家长端应用设计.md` §6 for the OIDC flow design.
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, required this.auth});
+  const LoginScreen({super.key, required this.auth, this.oidc});
 
   final AuthController auth;
+
+  /// When provided, renders an "SSO 登录" button.
+  final OidcAuthService? oidc;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -20,6 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passCtrl = TextEditingController(text: 'dev');
   final _formKey = GlobalKey<FormState>();
   bool _submitting = false;
+  bool _oidcLoading = false;
   String? _error;
 
   @override
@@ -43,6 +48,25 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _error = '登录失败：$e');
     } finally {
       if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<void> _oidcLogin() async {
+    final oidc = widget.oidc;
+    if (oidc == null) return;
+    setState(() {
+      _oidcLoading = true;
+      _error = null;
+    });
+    try {
+      await oidc.login();
+      // On success, the auth controller state change will navigate away.
+    } on OidcException catch (e) {
+      setState(() => _error = e.message);
+    } catch (e) {
+      setState(() => _error = 'SSO 登录失败：$e');
+    } finally {
+      if (mounted) setState(() => _oidcLoading = false);
     }
   }
 
@@ -123,6 +147,22 @@ class _LoginScreenState extends State<LoginScreen> {
                             )
                           : const Text('登录'),
                     ),
+                    if (widget.oidc != null) ...[
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: _oidcLoading ? null : _oidcLogin,
+                        icon: _oidcLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.4,
+                                ),
+                              )
+                            : const Icon(Icons.login),
+                        label: const Text('SSO 登录'),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     Text(
                       '开发环境默认密码为 PARENT_DEV_PASSWORD（缺省 dev）',

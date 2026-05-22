@@ -2,20 +2,25 @@
 /// contracts/openapi/parent-v1-mvp.yaml and cloud/apps/parent-bff/src).
 library;
 
+import '../utils/error_helper.dart';
+
 class TokenPair {
   final String accessToken;
   final String refreshToken;
+  final String tokenType;
   final int expiresIn;
 
   TokenPair({
     required this.accessToken,
     required this.refreshToken,
+    this.tokenType = 'Bearer',
     required this.expiresIn,
   });
 
   factory TokenPair.fromJson(Map<String, dynamic> j) => TokenPair(
         accessToken: j['access_token'] as String,
         refreshToken: j['refresh_token'] as String,
+        tokenType: (j['token_type'] as String?) ?? 'Bearer',
         expiresIn: (j['expires_in'] as num).toInt(),
       );
 }
@@ -140,7 +145,7 @@ class ApprovalRecord {
       );
 }
 
-class ApiException implements Exception {
+class ApiException implements Exception, ExceptionWithMessage {
   final int statusCode;
   final String code;
   final String message;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../state/auth_controller.dart';
+import 'approvals_screen.dart';
 import 'devices_tab.dart';
 import 'home_tab.dart';
 import 'me_tab.dart';
@@ -20,6 +21,14 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
+  void _goToApprovals() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ApprovalsScreen(auth: widget.auth),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = widget.auth;
@@ -29,6 +38,7 @@ class _HomeShellState extends State<HomeShell> {
         onGoToDevices: () => setState(() => _index = 2),
         onGoToTimeline: () => setState(() => _index = 1),
         onGoToPolicy: () => setState(() => _index = 3),
+        onGoToApprovals: _goToApprovals,
       ),
       TimelineTab(auth: auth),
       DevicesTab(auth: auth),

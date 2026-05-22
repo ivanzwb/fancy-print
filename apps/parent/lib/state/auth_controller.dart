@@ -118,6 +118,20 @@ class AuthController extends ChangeNotifier implements TokenStore {
     notifyListeners();
   }
 
+  /// Used by [OidcAuthService] to set the profile after OIDC login.
+  Future<void> setProfile(ParentProfile profile) async {
+    _profile = profile;
+    notifyListeners();
+  }
+
+  /// Used by [OidcAuthService] to persist email after OIDC login.
+  Future<void> setEmail(String email) async {
+    _email = email;
+    final sp = await SharedPreferences.getInstance();
+    await sp.setString(_kEmail, email);
+    notifyListeners();
+  }
+
   /// Convenience: peek at the access token payload (no signature check) to
   /// surface email / household before /me returns. Currently unused but kept
   /// for future offline-friendly UX.

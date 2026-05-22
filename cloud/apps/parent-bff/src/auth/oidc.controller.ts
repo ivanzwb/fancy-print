@@ -27,6 +27,7 @@ interface CookieRequest extends FastifyRequest {
  * Routes (both public):
  *   GET /v1/parent/auth/oidc/login    — Return IdP redirect URL (frontend navigates)
  *   GET /v1/parent/auth/oidc/callback — Handle IdP callback, return tokens as JSON
+ *      When ?redirect_uri is provided to login, redirects there with tokens instead.
  *
  * Requires `OIDC_ISSUER` env to be set. Falls back to dev login when unset.
  */
@@ -39,8 +40,9 @@ export class OidcController {
   @Public()
   @Get('login')
   async login(
+    @Query('redirect_uri') redirectUri: string | undefined,
     @Res({ passthrough: true }) reply: FastifyReply,
-  ): Promise<{ redirect_url: string }> {
+  ): Promise<{ redirect_url: string } | void> {
     if (!this.oidc.isConfigured()) {
       throw new InternalServerErrorException({
         code: 'OIDC_NOT_CONFIGURED',
@@ -67,6 +69,20 @@ export class OidcController {
       maxAge: 600,
     });
 
+    if (redirectUri) {
+      // Mobile flow: store redirect_uri and redirect the browser to IdP.
+      // After callback processing, the browser will be redirected to
+      // redirectUri with tokens as query params.
+      r.setCookie('oidc_redirect_uri', redirectUri, {
+        path: '/v1/parent/auth/oidc/callback',
+        httpOnly: true,
+        sameSite: 'lax',
+        maxAge: 600,
+      });
+      r.redirect(302, url);
+      return;
+    }
+
     this.logger.debug(`OIDC login redirect: ${url.substring(0, 80)}…`);
     return { redirect_url: url };
   }
@@ -78,14 +94,25 @@ export class OidcController {
     @Query('state') _state: string | undefined,
     @Query('error') error: string | undefined,
     @Req() request: FastifyRequest,
+    @Res({ passthrough: true }) reply: FastifyReply,
   ): Promise<{
     access_token: string;
     refresh_token: string;
     token_type: 'Bearer';
     expires_in: number;
-  }> {
+  } | void> {
     if (error) {
       this.logger.warn(`OIDC callback error from provider: ${error}`);
+      // For mobile flow with redirect_uri, redirect with error
+      const r = reply as unknown as CookieReply;
+      const redirectUri = (request as CookieRequest).cookies?.['oidc_redirect_uri'];
+      if (redirectUri) {
+        const loc = new URL(redirectUri);
+        loc.searchParams.set('error', error);
+        r.clearCookie('oidc_redirect_uri', { path: '/v1/parent/auth/oidc/callback' });
+        r.redirect(302, loc.href);
+        return;
+      }
       throw new BadRequestException({
         code: 'OIDC_PROVIDER_ERROR',
         message: `OIDC provider returned an error: ${error}`,
@@ -117,6 +144,27 @@ export class OidcController {
       `${request.protocol}://${request.hostname}`,
     );
 
-    return this.oidc.handleCallback(urlObj.href, codeVerifier, expectedState);
+    const tokens = await this.oidc.handleCallback(
+      urlObj.href,
+      codeVerifier,
+      expectedState,
+    );
+
+    // Mobile flow: redirect back to app with tokens in query params
+    const redirectUri = req.cookies?.['oidc_redirect_uri'];
+    if (redirectUri) {
+      const r = reply as unknown as CookieReply;
+      const loc = new URL(redirectUri);
+      loc.searchParams.set('access_token', tokens.access_token);
+      loc.searchParams.set('refresh_token', tokens.refresh_token);
+      // Clean up cookies
+      r.clearCookie('oidc_redirect_uri', { path: '/v1/parent/auth/oidc/callback' });
+      r.clearCookie('oidc_state', { path: '/v1/parent/auth/oidc/callback' });
+      r.clearCookie('oidc_code_verifier', { path: '/v1/parent/auth/oidc/callback' });
+      r.redirect(302, loc.href);
+      return;
+    }
+
+    return tokens;
   }
 }
