@@ -1,0 +1,91 @@
+# 单机一键栈：Redis + device-api + pipeline worker + parent-bff + gateway
+#
+# 使用方式见 cloud/deploy/scripts/deploy.sh 与 doc/6. 服务器运维手册.md
+#
+# 对外入口仅建议暴露 gateway:3000；3001/3002 可按需注释掉。
+
+name: fancy-print
+
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  device-api:
+    build:
+      context: ../../..
+      dockerfile: cloud/deploy/docker/Dockerfile.device-api
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3001"
+      REDIS_URL: redis://redis:6379
+      PIPELINE_QUEUE_BACKEND: bullmq
+      PIPELINE_QUEUE_CONCURRENCY: ${PIPELINE_QUEUE_CONCURRENCY:-8}
+      DEVICE_JWT_ACCESS_SECRET: ${DEVICE_JWT_ACCESS_SECRET}
+      DEVICE_JWT_REFRESH_SECRET: ${DEVICE_JWT_REFRESH_SECRET}
+    ports:
+      - "3001:3001"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  device-api-pipeline-worker:
+    build:
+      context: ../../..
+      dockerfile: cloud/deploy/docker/Dockerfile.device-api
+    environment:
+      NODE_ENV: production
+      REDIS_URL: redis://redis:6379
+      PIPELINE_QUEUE_BACKEND: bullmq
+      PIPELINE_QUEUE_CONCURRENCY: ${PIPELINE_WORKER_CONCURRENCY:-16}
+      PIPELINE_WORKER_STANDALONE: "1"
+      DEVICE_JWT_ACCESS_SECRET: ${DEVICE_JWT_ACCESS_SECRET}
+      DEVICE_JWT_REFRESH_SECRET: ${DEVICE_JWT_REFRESH_SECRET}
+    command: ["node", "apps/device-api/dist/main.js"]
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  parent-bff:
+    build:
+      context: ../../..
+      dockerfile: cloud/deploy/docker/Dockerfile.parent-bff
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3002"
+      PARENT_JWT_ACCESS_SECRET: ${PARENT_JWT_ACCESS_SECRET}
+      PARENT_JWT_REFRESH_SECRET: ${PARENT_JWT_REFRESH_SECRET}
+      PARENT_DEV_PASSWORD: ${PARENT_DEV_PASSWORD:-dev}
+    ports:
+      - "3002:3002"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  gateway:
+    build:
+      context: ../../..
+      dockerfile: cloud/deploy/docker/Dockerfile.gateway
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3000"
+      DEVICE_API_URL: http://device-api:3001
+      PARENT_BFF_URL: http://parent-bff:3002
+    ports:
+      - "3000:3000"
+    depends_on:
+      - device-api
+      - parent-bff
+
+volumes:
+  redis-data:

@@ -1,6 +1,19 @@
 # 部署（Docker / Compose / K8s）
 
-面向 **device-api** 的水平部署与 **BullMQ 流水线 Worker** 拆分。网关（gateway）可按需另建镜像，此处以 issue #13 的 device-api 为主。
+**运维总览（中文）**：[`../../doc/6. 服务器运维手册.md`](../../doc/6.%20服务器运维手册.md)（一键脚本、日常运维、排障）。
+
+- **全栈一键**：`cloud/deploy/compose/docker-compose.stack.yml`（Redis + device-api + pipeline worker + parent-bff + gateway），由 [`scripts/deploy.sh`](scripts/deploy.sh) 调用。
+- **仅设备通道**：`cloud/deploy/compose/docker-compose.device-api.yml`（`deploy.sh --device-only`）。
+
+镜像定义：
+
+| Dockerfile | 镜像用途 |
+|------------|----------|
+| [`docker/Dockerfile.device-api`](docker/Dockerfile.device-api) | device-api（默认 HTTP；可配 `PIPELINE_WORKER_STANDALONE`） |
+| [`docker/Dockerfile.gateway`](docker/Dockerfile.gateway) | gateway |
+| [`docker/Dockerfile.parent-bff`](docker/Dockerfile.parent-bff) | parent-bff |
+
+面向 **device-api** 的水平扩展与 **BullMQ 流水线 Worker** 拆分说明见下文；网关与 BFF 已纳入全栈 Compose。
 
 ## 环境变量速查
 
@@ -18,18 +31,40 @@
 
 ```bash
 docker build -f cloud/deploy/docker/Dockerfile.device-api -t fancy-print-device-api:latest .
+docker build -f cloud/deploy/docker/Dockerfile.gateway -t fancy-print-gateway:latest .
+docker build -f cloud/deploy/docker/Dockerfile.parent-bff -t fancy-print-parent-bff:latest .
 ```
 
-默认 `CMD` 为 HTTP API：`node apps/device-api/dist/main.js`。纯 Worker 使用**同一镜像**，覆盖环境变量 `PIPELINE_WORKER_STANDALONE=1`（见 Compose 示例）。
+device-api 默认 `CMD` 为 HTTP API：`node apps/device-api/dist/main.js`。纯 Worker 使用**同一镜像**，覆盖环境变量 `PIPELINE_WORKER_STANDALONE=1`（见 Compose 示例）。
+
+## 一键脚本（Linux / WSL）
+
+```bash
+chmod +x cloud/deploy/scripts/*.sh
+cp cloud/deploy/env/stack.example.env cloud/deploy/env/stack.env   # 首次：改密钥
+./cloud/deploy/scripts/deploy.sh                                   # 全栈
+./cloud/deploy/scripts/deploy.sh --device-only                     # 仅设备栈
+./cloud/deploy/scripts/healthcheck.sh
+./cloud/deploy/scripts/stop.sh
+```
+
+详见 [`doc/6. 服务器运维手册.md`](../../doc/6.%20服务器运维手册.md)。
 
 ## Docker Compose
+
+```bash
+docker compose -f cloud/deploy/compose/docker-compose.stack.yml --env-file cloud/deploy/env/stack.env up -d --build
+# 或
+./cloud/deploy/scripts/deploy.sh
+```
 
 ```bash
 docker compose -f cloud/deploy/compose/docker-compose.device-api.yml up --build
 ```
 
-- **device-api**：`http://127.0.0.1:3001/health`
-- **device-api-pipeline-worker**：无端口，仅消费 `device-pipeline` 队列
+- **全栈**：gateway **3000**、device-api **3001**、parent-bff **3002**（见 `stack.example.env`）
+- **device-api 演示**：`http://127.0.0.1:3001/health`
+- **device-api-pipeline-worker**：无端口，消费 BullMQ 队列（名称默认 **`fp:job-pipeline-advance`**，可用 `BULLMQ_PIPELINE_QUEUE_NAME` 覆盖）
 
 生产前请将 `DEVICE_JWT_*` 换为强随机 Secret（可用 `.env` 文件或 `export` 注入）。
 

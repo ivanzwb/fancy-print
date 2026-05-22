@@ -13,6 +13,8 @@ build/
 # Environment
 .env
 .env.*.local
+# 运维一键部署本机密钥（由 cloud/deploy/env/stack.example.env 复制）
+cloud/deploy/env/stack.env
 
 # OS / IDE
 .DS_Store

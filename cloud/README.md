@@ -34,7 +34,7 @@ npm run build
 
 **测试（`device-api`）**：`npm run test -w device-api`（单元 `*.spec.ts` + 集成 `*.e2e-spec.ts`，桩厂商、无 Redis/MQTT）。
 
-**高并发 / 水平扩展（[GitHub #13](https://github.com/ivanzwb/fancy-print/issues/13)）**：多副本下设置 **`PIPELINE_QUEUE_BACKEND=bullmq`**（须已有 **`REDIS_URL`**）可将流水线后台任务放入 **BullMQ** 队列，各副本内嵌 Worker 竞争消费；**`PIPELINE_QUEUE_CONCURRENCY`** 在 BullMQ 下为 worker 并行度（默认 **8**，上限 **128**）。单机多核可选用 **`DEVICE_API_CLUSTER_WORKERS=N`** 并执行 **`npm run start:cluster -w device-api`**（多进程仍监听同一 `PORT` 时须由外部 LB/编排分配端口）。MQTT 已启用 **`reconnectPeriod`**（**`MQTT_RECONNECT_MS`**，默认 1000）与 **`MQTT_SESSION_CLEAN`**（控制 `clean` session）。
+**高并发 / 水平扩展（[GitHub #13](https://github.com/ivanzwb/fancy-print/issues/13)）**：多副本下设置 **`PIPELINE_QUEUE_BACKEND=bullmq`**（须已有 **`REDIS_URL`**）可将流水线后台任务放入 **BullMQ** 队列，各副本内嵌 Worker 竞争消费；**`PIPELINE_QUEUE_CONCURRENCY`** 在 BullMQ 下为 worker 并行度（默认 **8**，上限 **128**）。单机多核可选用 **`DEVICE_API_CLUSTER_WORKERS=N`** 并执行 **`npm run start:cluster -w device-api`**（多进程仍监听同一 `PORT` 时须由外部 LB/编排分配端口）。MQTT 已启用 **`reconnectPeriod`**（**`MQTT_RECONNECT_MS`**，默认 1000）与 **`MQTT_SESSION_CLEAN`**（控制 `clean` session）。**生产一键部署与运维脚本**见 [`deploy/README.md`](deploy/README.md) 与 [`doc/6. 服务器运维手册.md`](../doc/6.%20服务器运维手册.md)。
 
 健康检查：`GET /health`（各服务一致）。`device-api` 业务在 **`/v1/*`**；`parent-bff` 在 **`/v1/parent/*`**；两者均暴露 **`GET /metrics`**（Prometheus 文本，`device-api` / `gateway`）。
 
