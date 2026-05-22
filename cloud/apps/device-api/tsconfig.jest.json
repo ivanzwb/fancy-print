@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "noEmit": true,
+    "baseUrl": "./src",
+    "paths": {
+      "@fancy-print/config": ["../../../packages/config/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}

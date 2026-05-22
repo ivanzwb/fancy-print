@@ -30,6 +30,10 @@ npm run dev:parent-bff
 npm run build
 ```
 
+`npm install` 后会 **postinstall** 执行 `npm run build -w @fancy-print/config`，生成 `@fancy-print/config` 的 `dist/`（供 `device-api` 的 `nest build` / Jest 类型解析）。
+
+**测试（`device-api`）**：`npm run test -w device-api`（单元 `*.spec.ts` + 集成 `*.e2e-spec.ts`，桩厂商、无 Redis/MQTT）。
+
 健康检查：`GET /health`（各服务一致）。`device-api` 业务在 **`/v1/*`**；`parent-bff` 在 **`/v1/parent/*`**；两者均暴露 **`GET /metrics`**（Prometheus 文本，`device-api` / `gateway`）。
 
 **可观测**：各服务对请求生成或透传 **`X-Request-Id`**；若客户端提供 **`traceparent` / `tracestate`**（W3C Trace Context），**网关与各 API** 在响应中回显并 **由网关转发至上游**（与 doc/4 **§6** 追踪诉求对齐）。
@@ -55,7 +59,7 @@ npm run build
 
 1. `POST /v1/jobs` 返回 **201**，响应头 **`Location: /v1/jobs/{id}`**；体 `{"content_mode":"…","child_profile_id":"可选"}`。`content_mode` **须为** `GET /v1/policy` 返回的 **`content_modes_allowed`** 之一（当前桩：`coloring_quiet_book`、`paper_craft`、`dress_up`）。可选 **`Idempotency-Key`**（**按设备作用域** 幂等）。  
 2. `POST /v1/jobs/{id}/audio` **整段关采音**（可选 body **`audio_base64`**）；关采音后由 **`ASR_DRIVER`** 选定的 **进程内 ASR**（默认 `auto`：已配讯飞凭据则 **IAT**，否则桩转写）。可选 **`S3_AUDIO_BUCKET`** 时先生成预签名 URL 供 ASR 拉取。或 **`POST /v1/jobs/{id}/chunks`**：无 body / `{final:true}` 与 audio 等价；带 **`seq`+`final`** 时 `seq` 须**严格递增**（重复 `seq` 幂等），每片可选 **`audio_base64`**，`final:true` 时按序号**解码拼接**为整段再关采音。  
-3. 多次 **`GET /v1/jobs/{id}`** 轮询：每次 **推进一档**（ASR → 文本审核 → 生图与成图审核 → 预览）；审核未配置 HTTP 时该步默认放行；上游失败则 **`state: failed`** 与 **`error_code`**。多实例请配置 **`REDIS_URL`**（Job 与幂等键存 Redis）；单机可用 **`JOBS_PERSISTENCE_PATH`** 落盘 JSON（与 Redis 二选一，见 README）。  
+3. **`POST /v1/jobs/{id}/advance`** 触发后台推进；配合多次 **`GET /v1/jobs/{id}`** 轮询状态：每次推进一档（ASR → 文本审核 → 生图与成图审核 → 预览）；审核未配置 HTTP 时该步默认放行；上游失败则 **`state: failed`** 与 **`error_code`**。多实例请配置 **`REDIS_URL`**（Job 与幂等键存 Redis）；单机可用 **`JOBS_PERSISTENCE_PATH`** 落盘 JSON（与 Redis 二选一，见 README）。  
 4. **`GET /v1/jobs/{id}/artifact`** → `302` 到预览 URL（未就绪则 `409`）。  
 5. `POST .../print-ack` 必须 **`Idempotency-Key`**（**按设备作用域** 幂等）。
 

@@ -1,0 +1,4 @@
+# Never commit compiler output next to sources (tsc misconfiguration)
+src/**/*.js
+src/**/*.js.map
+src/**/*.d.ts

@@ -7,8 +7,8 @@
     "build": "nest build",
     "start": "node dist/main.js",
     "dev": "nest start --watch",
-    "test": "jest",
-    "test:cov": "jest --coverage"
+    "test": "node ../../node_modules/jest/bin/jest.js",
+    "test:cov": "node ../../node_modules/jest/bin/jest.js --coverage"
   },
   "dependencies": {
     "@fancy-print/config": "*",

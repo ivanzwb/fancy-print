@@ -16,12 +16,13 @@ export class JobsArtifactController {
   ) {
     const url = await this.jobs.getArtifactRedirectUrl(jobId, dev.device_id);
     if (!url) {
-      return reply.status(409).send({
+      void reply.status(409).send({
         code: 'ARTIFACT_NOT_READY',
         message:
           'Preview URL not available yet; poll GET /v1/jobs/{job_id} until state is preview_ready',
       });
+      return;
     }
-    return reply.redirect(url);
+    void reply.redirect(url);
   }
 }

@@ -3,9 +3,9 @@ import type { Config } from 'jest';
 const config: Config = {
   moduleFileExtensions: ['js', 'json', 'ts'],
   rootDir: 'src',
-  testRegex: '.*\\.spec\\.ts$',
+  testRegex: '.*\\.(spec|e2e-spec)\\.ts$',
   transform: {
-    '^.+\\.(t|j)s$': ['ts-jest', { tsconfig: 'tsconfig.json' }],
+    '^.+\\.(t|j)s$': ['ts-jest', { tsconfig: 'tsconfig.jest.json' }],
   },
   collectCoverageFrom: [
     '**/*.service.ts',
@@ -13,6 +13,7 @@ const config: Config = {
     '**/*.controller.ts',
     '!**/*.module.ts',
     '!main.ts',
+    '!**/test/**',
   ],
   coverageDirectory: '../coverage',
   testEnvironment: 'node',

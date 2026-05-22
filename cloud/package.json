@@ -10,6 +10,7 @@
   },
   "scripts": {
     "build": "npm run build --workspaces --if-present",
+    "postinstall": "npm run build -w @fancy-print/config --if-present",
     "dev:gateway": "npm run dev -w gateway",
     "dev:device-api": "npm run dev -w device-api",
     "dev:parent-bff": "npm run dev -w parent-bff"
