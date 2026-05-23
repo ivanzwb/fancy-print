@@ -51,11 +51,11 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
       appBar: AppBar(
         title: const Text('扫描设备二维码'),
         actions: [
-          ValueListenableBuilder(
-            valueListenable: _controller.torchState,
+          ValueListenableBuilder<MobileScannerState>(
+            valueListenable: _controller,
             builder: (_, state, __) => IconButton(
               icon: Icon(
-                state == TorchState.on
+                state.torchState == TorchState.on
                     ? Icons.flash_on
                     : Icons.flash_off,
               ),
