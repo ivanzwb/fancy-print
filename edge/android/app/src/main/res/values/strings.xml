@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">奇想印印</string>
+
+    <!-- 通知渠道 -->
+    <string name="channel_daemon_name">后台服务</string>
+    <string name="channel_daemon_desc">EdgeDaemonService 前台服务通知</string>
+    <string name="channel_ota_name">系统更新</string>
+    <string name="channel_ota_desc">OTA 更新通知</string>
+    <string name="channel_alerts_name">设备告警</string>
+    <string name="channel_alerts_desc">设备异常告警通知</string>
+
+    <!-- 前台服务通知 -->
+    <string name="notification_daemon_title">奇想印印正在工作</string>
+    <string name="notification_daemon_text">管理打印任务和连接</string>
+
+    <!-- Main Kiosk -->
+    <string name="btn_ptt">按住说话</string>
+    <string name="btn_confirm">确认打印</string>
+    <string name="btn_settings">设置</string>
+    <string name="status_ready">就绪</string>
+    <string name="queue_empty">无待打印任务</string>
+
+    <!-- Print Confirm -->
+    <string name="print_confirm_title">确认打印</string>
+    <string name="btn_confirm_print">打印</string>
+    <string name="btn_cancel">取消</string>
+    <string name="job_submitted">打印任务已提交</string>
+    <string name="job_failed">提交失败，请重试</string>
+
+    <!-- Parent Lock -->
+    <string name="parent_lock_title">家长验证</string>
+    <string name="set_pin_title">设置家长锁 PIN</string>
+    <string name="pin_hint">请输入 4-8 位 PIN</string>
+    <string name="btn_pin_confirm">确认</string>
+    <string name="btn_forgot_pin">忘记 PIN</string>
+    <string name="pin_error">PIN 错误，请重试</string>
+    <string name="pin_empty">请输入 PIN</string>
+    <string name="pin_updated">PIN 已更新</string>
+
+    <!-- OTA -->
+    <string name="notification_ota_title">系统更新</string>
+    <string name="ota_new_version">新版本 %s 可用，正在下载…</string>
+    <string name="ota_checksum_failed">OTA 更新包校验失败</string>
+    <string name="ota_install_complete">OTA 更新完成</string>
+    <string name="ota_update_failed">OTA 更新失败：%s</string>
+
+    <!-- Settings -->
+    <string name="settings_title">设备设置</string>
+    <string name="old_pin_hint">旧 PIN</string>
+    <string name="new_pin_hint">新 PIN</string>
+    <string name="confirm_pin_hint">确认新 PIN</string>
+    <string name="btn_change_pin">修改 PIN</string>
+    <string name="btn_check_update">检查更新</string>
+    <string name="btn_reboot">重启设备</string>
+    <string name="btn_factory_reset">恢复出厂设置</string>
+    <string name="btn_exit_kiosk">退出 Kiosk</string>
+</resources>

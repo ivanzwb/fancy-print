@@ -1,0 +1,16 @@
+# ota-agent.timer — 每日 OTA 更新检查
+#
+# 每日凌晨 03:00 触发 ota-agent.service
+# 使用随机延迟避免云端并发峰值（RandomizedDelaySec）
+
+[Unit]
+Description=Daily OTA update check for FancyPrint
+Documentation=https://github.com/fancy-print/fancy-print
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=30min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

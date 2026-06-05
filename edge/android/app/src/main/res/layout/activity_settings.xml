@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/black">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="24dp">
+
+        <!-- 标题 -->
+        <TextView
+            android:id="@+id/settings_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/settings_title"
+            android:textColor="@android:color/white"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <!-- 设备信息 -->
+        <TextView
+            android:id="@+id/device_info_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="设备信息"
+            android:textColor="@android:color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginTop="32dp"
+            app:layout_constraintTop_toBottomOf="@id/settings_title"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <TextView
+            android:id="@+id/device_info_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="--"
+            android:textColor="#CCFFFFFF"
+            android:textSize="12sp"
+            android:layout_marginTop="8dp"
+            android:padding="12dp"
+            android:background="#1AFFFFFF"
+            app:layout_constraintTop_toBottomOf="@id/device_info_label"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- 家长锁 PIN 修改 -->
+        <TextView
+            android:id="@+id/pin_section_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="修改家长锁 PIN"
+            android:textColor="@android:color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginTop="24dp"
+            app:layout_constraintTop_toBottomOf="@id/device_info_text"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <EditText
+            android:id="@+id/old_pin"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:inputType="numberPassword"
+            android:maxLength="8"
+            android:hint="@string/old_pin_hint"
+            android:textColor="@android:color/white"
+            android:textColorHint="#88FFFFFF"
+            android:background="@android:drawable/editbox_background"
+            android:layout_marginTop="12dp"
+            android:paddingHorizontal="12dp"
+            app:layout_constraintTop_toBottomOf="@id/pin_section_label"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <EditText
+            android:id="@+id/new_pin"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:inputType="numberPassword"
+            android:maxLength="8"
+            android:hint="@string/new_pin_hint"
+            android:textColor="@android:color/white"
+            android:textColorHint="#88FFFFFF"
+            android:background="@android:drawable/editbox_background"
+            android:layout_marginTop="8dp"
+            android:paddingHorizontal="12dp"
+            app:layout_constraintTop_toBottomOf="@id/old_pin"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <EditText
+            android:id="@+id/confirm_pin"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:inputType="numberPassword"
+            android:maxLength="8"
+            android:hint="@string/confirm_pin_hint"
+            android:textColor="@android:color/white"
+            android:textColorHint="#88FFFFFF"
+            android:background="@android:drawable/editbox_background"
+            android:layout_marginTop="8dp"
+            android:paddingHorizontal="12dp"
+            app:layout_constraintTop_toBottomOf="@id/new_pin"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <Button
+            android:id="@+id/change_pin_button"
+            style="@style/Widget.MaterialComponents.Button"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginTop="12dp"
+            android:text="@string/btn_change_pin"
+            app:layout_constraintTop_toBottomOf="@id/confirm_pin"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- 家长锁开关 -->
+        <TextView
+            android:id="@+id/lock_section_label"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="家长锁"
+            android:textColor="@android:color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginTop="24dp"
+            app:layout_constraintTop_toBottomOf="@id/change_pin_button"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <Switch
+            android:id="@+id/lock_enabled_switch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="启用家长锁"
+            android:textColor="@android:color/white"
+            android:layout_marginTop="24dp"
+            app:layout_constraintTop_toBottomOf="@id/change_pin_button"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- WiFi 设置 -->
+        <TextView
+            android:id="@+id/wifi_section_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="WiFi 网络"
+            android:textColor="@android:color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginTop="24dp"
+            app:layout_constraintTop_toBottomOf="@id/lock_enabled_switch"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <TextView
+            android:id="@+id/wifi_ssid_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="--"
+            android:textColor="#CCFFFFFF"
+            android:textSize="12sp"
+            android:layout_marginTop="8dp"
+            android:padding="12dp"
+            android:background="#1AFFFFFF"
+            app:layout_constraintTop_toBottomOf="@id/wifi_section_label"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <Button
+            android:id="@+id/wifi_settings_button"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginTop="8dp"
+            android:text="WiFi 设置"
+            android:textColor="@android:color/white"
+            app:layout_constraintTop_toBottomOf="@id/wifi_ssid_text"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- OTA 自动检查 -->
+        <TextView
+            android:id="@+id/ota_section_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="OTA 更新"
+            android:textColor="@android:color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginTop="24dp"
+            app:layout_constraintTop_toBottomOf="@id/wifi_settings_button"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <Switch
+            android:id="@+id/ota_auto_check_switch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="自动检查更新"
+            android:textColor="@android:color/white"
+            android:layout_marginTop="24dp"
+            app:layout_constraintTop_toBottomOf="@id/wifi_settings_button"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- 系统操作 -->
+
+        <Button
+            android:id="@+id/check_update_button"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginTop="24dp"
+            android:text="@string/btn_check_update"
+            android:textColor="@android:color/white"
+            app:layout_constraintTop_toBottomOf="@id/ota_auto_check_switch"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <Button
+            android:id="@+id/reboot_button"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginTop="8dp"
+            android:text="@string/btn_reboot"
+            android:textColor="#FFD0D0"
+            app:layout_constraintTop_toBottomOf="@id/check_update_button"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <Button
+            android:id="@+id/exit_kiosk_button"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginTop="8dp"
+            android:text="@string/btn_exit_kiosk"
+            android:textColor="#FFD0D0"
+            app:layout_constraintTop_toBottomOf="@id/reboot_button"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <Button
+            android:id="@+id/factory_reset_button"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginTop="8dp"
+            android:text="@string/btn_factory_reset"
+            android:textColor="#FF8080"
+            app:layout_constraintTop_toBottomOf="@id/exit_kiosk_button"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            android:layout_marginBottom="24dp" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</ScrollView>

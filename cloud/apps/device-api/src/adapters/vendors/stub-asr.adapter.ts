@@ -8,6 +8,6 @@ export class StubAsrAdapter implements AsrAdapter {
   }
 
   async transcribe(_input: AsrAdapterInput): Promise<string | null> {
-    return null;
+    return '[stub] 今天天气真不错，我想画一个小兔子。';
   }
 }

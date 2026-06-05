@@ -22,6 +22,12 @@ export class S3PreviewService {
     return { bucket, region, key };
   }
 
+  isConfigured(): boolean {
+    const bucket = process.env.S3_PREVIEW_BUCKET?.trim();
+    const region = process.env.AWS_REGION?.trim();
+    return !!(bucket && region);
+  }
+
   /** 将 PNG base64 写入 `previews/{job_id}.png`（需 `S3_PREVIEW_UPLOAD=1`）。 */
   async uploadJobPreviewFromBase64(
     jobId: string,

@@ -37,7 +37,8 @@ function singleHeader(
 
 function proxyHandler(upstream: string) {
   return async function (req: FastifyRequest, reply: FastifyReply) {
-    reply.from(upstream, {
+    return reply.from(req.url ?? '/', {
+      getUpstream: () => upstream,
       rewriteRequestHeaders: (request, headers) => {
         const id = String(request.headers['x-request-id'] ?? '');
         const out: Record<string, string | string[] | undefined> = {
@@ -64,6 +65,8 @@ function proxyHandler(upstream: string) {
     });
   };
 }
+
+
 
 async function main() {
   const app = Fastify({
@@ -134,6 +137,22 @@ async function main() {
       }
     }
   });
+  // ── Accept empty JSON bodies ───────────────────────────────────────
+  // Android sends Content-Type: application/json with an empty body
+  // (e.g., POST /v1/jobs/{id}/advance). Fastify's default JSON parser
+  // rejects empty JSON — override to return {} gracefully.
+  app.addContentTypeParser('application/json', { parseAs: 'buffer' }, (_req, body, done) => {
+    if (body && body.length > 0) {
+      try {
+        done(null, JSON.parse(body.toString()));
+      } catch (err: unknown) {
+        const e = err instanceof Error ? err : new Error(String(err));
+        done(e);
+      }
+    } else {
+      done(null, {});
+    }
+  });
 
   // ── Order-independent route registration ──────────────────────────
   // Route matching uses Fastify's Radix tree (find-my-way), so sibling
@@ -147,6 +166,48 @@ async function main() {
   const deviceHandler = proxyHandler(deviceApiUrl);
   app.all('/v1', deviceHandler);
   app.all('/v1/*', deviceHandler);
+
+  // ── Android native endpoints (no /v1/ prefix) ──────────────────────
+  // The edge Android app sends audio directly to /asr/transcribe, OTA
+  // checks to /ota/check, and polls /jobs/{id}/status — all without the
+  // /v1/ prefix that device-api routes under. Rewrite path before forward.
+  function androidProxyHandler(upstream: string) {
+    return async function (req: FastifyRequest, reply: FastifyReply) {
+      return reply.from('/v1' + (req.url ?? '/'), {
+        getUpstream: () => upstream,
+        rewriteRequestHeaders: (request, headers) => {
+          const id = String(request.headers['x-request-id'] ?? '');
+          const out: Record<string, string | string[] | undefined> = {
+            ...headers,
+            'x-request-id': id,
+          };
+          const tp = singleHeader(
+            request.headers as unknown as Record<string, unknown>,
+            'traceparent',
+          );
+          if (tp) out.traceparent = tp;
+          const ts = singleHeader(
+            request.headers as unknown as Record<string, unknown>,
+            'tracestate',
+          );
+          if (ts) out.tracestate = ts;
+          const mtlsId = singleHeader(
+            request.headers as unknown as Record<string, unknown>,
+            'x-device-id-from-mtls',
+          );
+          if (mtlsId) out['x-device-id-from-mtls'] = mtlsId;
+          return out as IncomingHttpHeaders;
+        },
+      });
+    };
+  }
+  const androidHandler = androidProxyHandler(deviceApiUrl);
+  app.all('/asr', androidHandler);
+  app.all('/asr/*', androidHandler);
+  app.all('/ota', androidHandler);
+  app.all('/ota/*', androidHandler);
+  app.all('/jobs', androidHandler);
+  app.all('/jobs/*', androidHandler);
 
   // ── Built-in routes ───────────────────────────────────────────────
 

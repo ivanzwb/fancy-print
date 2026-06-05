@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- OTA 更新包存储路径 -->
+    <files-path name="ota_packages" path="ota_packages/" />
+    <cache-path name="ota_cache" path="." />
+    <!-- 录音文件 -->
+    <files-path name="recordings" path="recordings/" />
+    <!-- 应用外部存储 -->
+    <external-path name="external_files" path="." />
+</paths>

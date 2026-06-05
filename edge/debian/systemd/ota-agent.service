@@ -1,0 +1,32 @@
+# ota-agent — 奇想印印 OTA 更新检查与安装代理
+#
+# 由 ota-agent.timer 周期性触发，检查云端 OTA 更新，
+# 下载并验证签名后安装。
+#
+# 安装：
+#   cp ota-agent.service ota-agent.timer /etc/systemd/system/
+#   systemctl daemon-reload
+#   systemctl enable --now ota-agent.timer
+#
+# 对应 doc/3 §2.2 OTA 更新
+
+[Unit]
+Description=FancyPrint OTA Agent — update check and install
+Documentation=https://github.com/fancy-print/fancy-print
+After=network.target edge-daemon.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/ota-agent
+User=fancy-print
+Group=fancy-print
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/fancy-print /var/cache/fancy-print
+ReadOnlyPaths=/etc/fancy-print
+
+# 日志
+StandardOutput=journal
+StandardError=journal

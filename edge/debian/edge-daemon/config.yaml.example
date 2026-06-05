@@ -1,0 +1,38 @@
+# edge-daemon 配置示例
+# 部署路径：/etc/fancy-print/config.yaml
+# 对应 doc/2 §8 安全与配置
+
+device_id: "fancy-print-001"           # 必填：设备唯一 ID
+device_name: "奇想印印 #001"            # 设备显示名称
+
+grpc_port: 9090                        # IPC gRPC 端口
+
+# 打印
+printer_driver: "cups"                 # "cups" 或 "direct"
+printer_name: "ZINK_Printer"           # CUPS 打印机队列名
+print_timeout_s: 120
+
+# 音频
+audio_input_device: "default"          # ALSA 输入设备
+audio_output_device: "default"         # ALSA 输出设备
+sample_rate: 16000                     # 录音采样率（Hz）
+
+# GPIO
+ptt_gpio: 17                           # PTT 按键 GPIO（BCM 编号）
+led_gpio: 27                           # 状态 LED GPIO
+
+# 云连接
+mqtt_broker_url: "mqtt://cloud.fancy-print.local:1883"
+mqtt_client_id: "fp-edge-001"
+api_base_url: "https://api.fancy-print.local/v1"
+token_path: "/var/lib/fancy-print/device.token"
+
+# 存储
+data_dir: "/var/lib/fancy-print"
+cache_dir: "/var/cache/fancy-print"
+audio_dir: "/var/lib/fancy-print/audio"
+max_cache_size_mb: 200
+max_audio_duration_s: 30
+
+# 日志
+log_level: "info"

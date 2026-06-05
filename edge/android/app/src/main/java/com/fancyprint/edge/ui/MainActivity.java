@@ -1,0 +1,593 @@
+package com.fancyprint.edge.ui;
+
+import android.annotation.SuppressLint;
+import android.Manifest;
+import android.app.admin.DevicePolicyManager;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.IBinder;
+import android.os.PowerManager;
+import android.os.RemoteException;
+import android.util.Log;
+import android.view.KeyEvent;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
+import android.view.WindowManager;
+import android.widget.ImageButton;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import com.fancyprint.edge.FancyPrintApplication;
+import com.fancyprint.edge.IAsrCallback;
+import com.fancyprint.edge.IEdgeDaemonService;
+import com.fancyprint.edge.IPrintJobCallback;
+import com.fancyprint.edge.R;
+import com.fancyprint.edge.security.DeviceAdminReceiver;
+
+/**
+ * MainActivity — Kiosk 主界面（全屏沉浸、不可退出、开机自启）
+ *
+ * 对应 doc/2 §13.3.2 显示与触屏 — Lock Task Mode kiosk
+ *
+ * 安全措施：
+ * - 全屏沉浸模式（隐藏系统栏/导航栏/状态栏）
+ * - Lock Task Mode（锁定当前应用，禁止退出到桌面）
+ * - 禁止返回键、最近任务键、Home 键
+ * - 窗口焦点变化时重新进入沉浸模式
+ * - 屏幕常亮（不自动息屏）
+ * - 开机自启动（BootReceiver）
+ */
+public class MainActivity extends AppCompatActivity {
+
+    private static final String TAG = "MainActivity";
+
+    private IEdgeDaemonService daemonService;
+    private boolean bound = false;
+    private boolean fromBoot = false;
+    private boolean dpcProvisioned = false;
+    private String pendingJobId; // 云端下发的待确认任务 ID（P1-4）
+
+    private TextView statusText;
+    private TextView jobCountText;
+    private ImageButton pttButton;
+    private boolean isRecording = false;
+    private long pttDownTime = 0;
+    private static final int MIN_PTT_MS = 2000; // 最短 PTT 按键 2 秒（Baidu ASR 需要至少 1 秒）
+
+    private final ServiceConnection connection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            daemonService = IEdgeDaemonService.Stub.asInterface(service);
+            bound = true;
+            Log.i(TAG, "Bound to EdgeDaemonService");
+            registerCallback();
+            updateDeviceInfo();
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            daemonService = null;
+            bound = false;
+            Log.w(TAG, "Disconnected from EdgeDaemonService");
+        }
+    };
+
+    private final IPrintJobCallback.Stub printCallback = new IPrintJobCallback.Stub() {
+        @Override
+        public void onPrintJobStatusChanged(String jobId, String status, int errorCode, String message) {
+            runOnUiThread(() -> {
+                statusText.setText("打印: " + message);
+                if ("pending_confirm".equals(status)) {
+                    pendingJobId = jobId; // 记录云端下发的待确认任务
+                    statusText.setText("有新打印任务");
+                }
+                updateQueueInfo();
+            });
+        }
+
+        @Override
+        public void onConnectionStatusChanged(String status) {
+            runOnUiThread(() -> {
+                findViewById(R.id.connection_status).setVisibility(View.VISIBLE);
+                ((TextView) findViewById(R.id.connection_status)).setText("连接: " + status);
+            });
+        }
+
+        @Override
+        public void onDeviceAlert(String type, String message) {
+            runOnUiThread(() -> {
+                Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show();
+            });
+        }
+
+        @Override
+        public void onUpdateAvailable(String version, String changelog) {
+            runOnUiThread(() -> {
+                Toast.makeText(MainActivity.this,
+                        "新版本 " + version + " 可用", Toast.LENGTH_LONG).show();
+            });
+        }
+    };
+
+    // ============================================================
+    // 生命周期
+    // ============================================================
+
+    @SuppressLint("MissingSuperCall")
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        fromBoot = getIntent().getBooleanExtra("from_boot", false);
+
+        // === 屏幕常亮（不自动息屏） ===
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        // === 禁用屏幕锁定（不显示锁屏界面） ===
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true);
+            setTurnScreenOn(true);
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED);
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
+        }
+
+        setContentView(R.layout.activity_main);
+
+        // === 全屏沉浸模式（setContentView 之后，确保 DecorView 已创建） ===
+        enableFullScreenImmersive();
+
+        statusText = findViewById(R.id.status_text);
+        jobCountText = findViewById(R.id.job_count);
+        pttButton = findViewById(R.id.ptt_button);
+
+        // 启动并绑定 EdgeDaemonService（Android 14+ 必须先 startForegroundService）
+        Intent intent = new Intent(this, com.fancyprint.edge.service.EdgeDaemonService.class);
+        intent.setAction("com.fancyprint.edge.action.START_DAEMON");
+        startForegroundService(intent);
+        bindService(intent, connection, Context.BIND_AUTO_CREATE);
+
+        // 激活 Lock Task Mode（锁定在 Kiosk）
+        enableKioskMode();
+
+        // Android 13+ 请求通知权限（kiosk 场景使用 DPC 预授权或直接请求）
+        requestNotificationPermission();
+
+        // PTT 按键
+        pttButton.setOnTouchListener((v, event) -> {
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    startPttRecording();
+                    pttDownTime = System.currentTimeMillis();
+                    return true;
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_CANCEL:
+                    long pressDuration = System.currentTimeMillis() - pttDownTime;
+                    if (pressDuration < MIN_PTT_MS) {
+                        // 按键太短，延迟到最矮时长再停止
+                        long delay = MIN_PTT_MS - pressDuration;
+                        v.postDelayed(() -> stopPttRecording(), delay);
+                        Log.i(TAG, "PTT too short (" + pressDuration + "ms), delaying stop by " + delay + "ms");
+                    } else {
+                        stopPttRecording();
+                    }
+                    return true;
+            }
+            return false;
+        });
+
+        // 设置按钮（需家长 PIN）
+        findViewById(R.id.settings_button).setOnClickListener(v -> {
+            Intent settingsIntent = new Intent(MainActivity.this, ParentLockActivity.class);
+            settingsIntent.putExtra("target", "settings");
+            startActivity(settingsIntent);
+        });
+
+        // 打印确认
+        findViewById(R.id.print_confirm_button).setOnClickListener(v -> {
+            Intent confirmIntent = new Intent(MainActivity.this, PrintConfirmActivity.class);
+            if (pendingJobId != null) {
+                // 有云端下发的待确认任务 → 传递真实数据
+                confirmIntent.putExtra("jobId", pendingJobId);
+                if (bound && daemonService != null) {
+                    try {
+                        String jobJson = daemonService.getPrintJobStatus(pendingJobId);
+                        org.json.JSONObject json = new org.json.JSONObject(jobJson);
+                        confirmIntent.putExtra("imageUrl", json.optString("imageUrl", ""));
+                        confirmIntent.putExtra("mode", json.optString("mode", "color"));
+                        confirmIntent.putExtra("contentMode", json.optString("contentMode", "coloring"));
+                    } catch (Exception e) {
+                        Log.e(TAG, "Failed to get pending job details", e);
+                    }
+                }
+                pendingJobId = null; // 消费掉
+            }
+            startActivity(confirmIntent);
+        });
+
+        // 检查 DPC 设备管理员/Device Owner 激活状态
+        checkDpcProvisioning();
+
+        if (fromBoot) {
+            Log.i(TAG, "Started from boot receiver");
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 每次恢复时重新进入沉浸模式（防止系统栏意外出现）
+        enableFullScreenImmersive();
+        // 确保 Lock Task Mode 仍激活
+        ensureKioskActive();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        // 窗口获焦时重新隐藏系统栏（防止通知栏下拉后残留）
+        if (hasFocus) {
+            enableFullScreenImmersive();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (bound && daemonService != null) {
+            try {
+                daemonService.unregisterPrintCallback(printCallback);
+            } catch (RemoteException e) {
+                Log.e(TAG, "unregister callback error", e);
+            }
+            unbindService(connection);
+            bound = false;
+        }
+        super.onDestroy();
+    }
+
+    // ============================================================
+    // 全屏沉浸模式（API 30+ 和旧版本兼容）
+    // ============================================================
+
+    @SuppressLint("ObsoleteSdkInt")
+    private void enableFullScreenImmersive() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Android 11+：WindowInsetsController
+            final WindowInsetsController controller = getWindow().getInsetsController();
+            if (controller != null) {
+                // 隐藏状态栏和导航栏
+                controller.hide(WindowInsets.Type.statusBars()
+                        | WindowInsets.Type.navigationBars());
+                // 手势滑动时不显示系统栏（immersive）
+                controller.setSystemBarsBehavior(
+                        WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+            }
+        } else {
+            // Android 10 及以下：SYSTEM_UI_FLAGS
+            getWindow().getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_LOW_PROFILE
+            );
+        }
+
+        // 隐藏 ActionBar
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().hide();
+        }
+    }
+
+    // ============================================================
+    // Lock Task Mode（Kiosk 锁定）
+    // ============================================================
+
+    private void enableKioskMode() {
+        DevicePolicyManager dpm = (DevicePolicyManager)
+                getSystemService(Context.DEVICE_POLICY_SERVICE);
+        ComponentName admin = new ComponentName(this, DeviceAdminReceiver.class);
+
+        if (dpm.isAdminActive(admin)) {
+            // 将本包名加入锁任务白名单
+            dpm.setLockTaskPackages(admin, new String[]{getPackageName()});
+            if (dpm.isLockTaskPermitted(getPackageName())) {
+                startLockTask();
+                Log.i(TAG, "Lock Task Mode activated");
+                return;
+            }
+        }
+        // 如果设备管理员未激活，尝试直接 startLockTask（部分 ROM 支持）
+        try {
+            startLockTask();
+            Log.i(TAG, "Lock Task Mode started (no DPC)");
+        } catch (Exception e) {
+            Log.w(TAG, "Lock Task Mode not available", e);
+        }
+    }
+
+    /**
+     * 检查 DPC（Device Policy Controller）是否已配置
+     *
+     * 如果设备管理员未激活，说明设备尚未完成 Android Enterprise 托管配置。
+     * 对于 kiosk 设备，应使用 DevicePolicyManager.ACTION_PROVISION_MANAGED_DEVICE
+     * 通过 NFC/QR 完成托管配置，从而获得 Lock Task Mode 和设备管理器权限。
+     */
+    private void checkDpcProvisioning() {
+        DevicePolicyManager dpm = (DevicePolicyManager)
+                getSystemService(Context.DEVICE_POLICY_SERVICE);
+        ComponentName admin = new ComponentName(this, DeviceAdminReceiver.class);
+
+        // 检查是否为 Device Owner（完全托管设备）
+        if (dpm.isDeviceOwnerApp(getPackageName())) {
+            dpcProvisioned = true;
+            Log.i(TAG, "DPC provisioned: device owner");
+            return;
+        }
+
+        // 检查设备管理员是否已激活（部分托管场景）
+        if (dpm.isAdminActive(admin)) {
+            dpcProvisioned = true;
+            Log.i(TAG, "DPC provisioned: admin active");
+            return;
+        }
+
+        // 未配置 DPC — 记录日志，UI 上通过状态栏提示
+        dpcProvisioned = false;
+        Log.w(TAG, "DPC not provisioned — device admin not active, "
+                + "Lock Task Mode may be unavailable");
+
+        // 尝试通过 provisioning intent 引导用户完成配置
+        try {
+            Intent provisioningIntent = new Intent(
+                    DevicePolicyManager.ACTION_PROVISION_MANAGED_DEVICE);
+            provisioningIntent.putExtra(
+                    DevicePolicyManager.EXTRA_PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME,
+                    admin);
+            provisioningIntent.putExtra(
+                    DevicePolicyManager.EXTRA_PROVISIONING_SKIP_ENCRYPTION, true);
+            // 使用 NEW_TASK 因为可能来自 boot
+            provisioningIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(provisioningIntent);
+            Log.i(TAG, "Provisioning intent launched");
+        } catch (Exception e) {
+            Log.w(TAG, "Cannot launch provisioning (device already managed or UI not available): "
+                    + e.getMessage());
+            // 设备可能已被其他方式管理，或当前场景不支持 provisioning
+        }
+    }
+
+    private boolean isLockTaskModeActive() {
+        android.app.ActivityManager am = (android.app.ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        return am != null && am.getLockTaskModeState() != android.app.ActivityManager.LOCK_TASK_MODE_NONE;
+    }
+
+    private void ensureKioskActive() {
+        try {
+            if (isLockTaskModeActive()) {
+                // 已在锁定模式，无需操作
+                return;
+            }
+        } catch (Exception ignored) {}
+        // 如果不在锁定模式（被意外退出），重新锁定
+        enableKioskMode();
+    }
+
+    // ============================================================
+    // 通知权限（Android 13+ 运行时请求）
+    // ============================================================
+
+    private static final int REQUEST_POST_NOTIFICATIONS = 1001;
+
+    /**
+     * 请求 POST_NOTIFICATIONS 权限（Android 13+ / API 33+）
+     *
+     * Android 14 要求：前台服务和通知渠道必须在获得此权限后才会对用户可见。
+     * Kiosk 设备可通过 DPC 预授权（DevicePolicyManager.setPermissionGrantState），
+     * 若 DPC 未配置则直接弹系统对话框。
+     */
+    private void requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return; // API 33 以下不需要运行时权限
+        }
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                == PackageManager.PERMISSION_GRANTED) {
+            FancyPrintApplication.hasNotificationPermission = true;
+            return;
+        }
+
+        // 尝试通过 DPC 静默授权（kiosk 设备管理员可做到）
+        DevicePolicyManager dpm = (DevicePolicyManager)
+                getSystemService(Context.DEVICE_POLICY_SERVICE);
+        ComponentName admin = new ComponentName(this, DeviceAdminReceiver.class);
+        if (dpm.isAdminActive(admin)) {
+            try {
+                dpm.setPermissionGrantState(admin, getPackageName(),
+                        Manifest.permission.POST_NOTIFICATIONS,
+                        DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED);
+                Log.i(TAG, "POST_NOTIFICATIONS granted via DPC");
+                FancyPrintApplication.hasNotificationPermission = true;
+                return;
+            } catch (Exception e) {
+                Log.w(TAG, "DPC grant failed, fallback to dialog", e);
+            }
+        }
+
+        // 兜底：弹系统对话框请求
+        requestPermissions(
+                new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                REQUEST_POST_NOTIFICATIONS);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           String[] permissions,
+                                           int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_POST_NOTIFICATIONS) {
+            if (grantResults.length > 0
+                    && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                FancyPrintApplication.hasNotificationPermission = true;
+                Log.i(TAG, "POST_NOTIFICATIONS granted by user");
+            } else {
+                Log.w(TAG, "POST_NOTIFICATIONS denied — 前台服务通知可能不显示");
+                // kiosk 设备上无法拒绝 — 可通过 DPC 强制授权
+            }
+        }
+    }
+
+    // ============================================================
+    // 按键拦截（禁止退出 Kiosk）
+    // ============================================================
+
+    /**
+     * 拦截所有物理按键：
+     * - 返回键 → 无反应（不退出 Activity）
+     * - Home 键 → Lock Task Mode 已拦截
+     * - 最近任务键 → Lock Task Mode 已拦截
+     * - 音量键 → 保留（用于调节 PTT/TTS 音量）
+     */
+    @Override
+    public void onBackPressed() {
+        // Kiosk 模式下返回键无反应
+        Log.d(TAG, "Back button blocked (kiosk mode)");
+        // 不调用 super.onBackPressed()
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        // 拦截返回键和菜单键
+        if (keyCode == KeyEvent.KEYCODE_BACK
+                || keyCode == KeyEvent.KEYCODE_MENU
+                || keyCode == KeyEvent.KEYCODE_APP_SWITCH) {
+            Log.d(TAG, "Key blocked: " + keyCode);
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    public boolean onKeyLongPress(int keyCode, KeyEvent event) {
+        // 拦截长按（如长按 Home 键调出最近任务）
+        if (keyCode == KeyEvent.KEYCODE_HOME
+                || keyCode == KeyEvent.KEYCODE_BACK
+                || keyCode == KeyEvent.KEYCODE_MENU) {
+            return true;
+        }
+        return super.onKeyLongPress(keyCode, event);
+    }
+
+    // ============================================================
+    // 阻止通过 Recent Apps 进入 / 多窗口拖拽
+    // ============================================================
+
+    @Override
+    protected void onUserLeaveHint() {
+        // 防止用户通过手势离开 Activity
+        super.onUserLeaveHint();
+        if (isLockTaskModeActive()) {
+            // Re-lock if somehow left
+            moveTaskToBack(true);
+        }
+    }
+
+    // ============================================================
+    // PTT 录音
+    // ============================================================
+
+    private void startPttRecording() {
+        if (!bound || daemonService == null) return;
+        try {
+            boolean started = daemonService.startRecording();
+            if (started) {
+                isRecording = true;
+                pttButton.setColorFilter(0xFFFF4444, android.graphics.PorterDuff.Mode.SRC_IN);
+                statusText.setText("录音中...");
+            }
+        } catch (RemoteException e) {
+            Log.e(TAG, "startRecording error", e);
+        }
+    }
+
+    private void stopPttRecording() {
+        if (!bound || daemonService == null || !isRecording) return;
+        try {
+            String audioPath = daemonService.stopRecording();
+            isRecording = false;
+            pttButton.setColorFilter(0xFFFFAA00, android.graphics.PorterDuff.Mode.SRC_IN);
+            statusText.setText("语音识别中...");
+            Log.i(TAG, "PTT recording saved: " + audioPath);
+
+            if (audioPath != null && !audioPath.isEmpty()) {
+                daemonService.transcribeAudio(audioPath, new IAsrCallback.Stub() {
+                    @Override
+                    public void onSuccess(String transcription) {
+                        runOnUiThread(() -> {
+                            pttButton.clearColorFilter();
+                            statusText.setText(transcription);
+                        });
+                    }
+
+                    @Override
+                    public void onError(int code, String message) {
+                        runOnUiThread(() -> {
+                            pttButton.clearColorFilter();
+                            statusText.setText("识别失败: " + message);
+                        });
+                    }
+                });
+            } else {
+                pttButton.clearColorFilter();
+                statusText.setText("录音为空");
+            }
+        } catch (RemoteException e) {
+            Log.e(TAG, "stopRecording error", e);
+            pttButton.clearColorFilter();
+        }
+    }
+
+    // ============================================================
+    // 设备信息
+    // ============================================================
+
+    private void updateDeviceInfo() {
+        if (!bound || daemonService == null) return;
+        try {
+            String info = daemonService.getDeviceInfo();
+            Log.i(TAG, "Device info: " + info);
+            updateQueueInfo();
+        } catch (RemoteException e) {
+            Log.e(TAG, "getDeviceInfo error", e);
+        }
+    }
+
+    private void updateQueueInfo() {
+        if (!bound || daemonService == null) return;
+        try {
+            String queueJson = daemonService.getPrintQueue();
+            org.json.JSONArray arr = new org.json.JSONArray(queueJson);
+            jobCountText.setText("队列: " + arr.length() + " 个任务");
+        } catch (Exception e) {
+            Log.e(TAG, "getPrintQueue error", e);
+        }
+    }
+
+    private void registerCallback() {
+        if (!bound || daemonService == null) return;
+        try {
+            daemonService.registerPrintCallback(printCallback);
+        } catch (RemoteException e) {
+            Log.e(TAG, "register callback error", e);
+        }
+    }
+}

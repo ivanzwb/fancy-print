@@ -1,0 +1,347 @@
+// edge_ipc.proto — 端侧 IPC 契约（UI ↔ edge-daemon）
+//
+// 对应 doc/3 §3 IPC 契约、doc/2 §5.2
+// 传输层：gRPC / connect-go（同时支持 gRPC 与 gRPC-web）
+// 版本：v1
+
+syntax = "proto3";
+
+package fancyprint.edge.v1;
+
+option go_package = "github.com/fancy-print/edge-daemon/internal/edgepb;edgepb";
+
+// ============================================================
+// 服务定义
+// ============================================================
+
+service EdgeDaemonService {
+  // === 设备状态 ===
+  rpc GetDeviceInfo(GetDeviceInfoRequest) returns (DeviceInfo);
+  rpc WatchDeviceStatus(WatchDeviceStatusRequest) returns (stream DeviceStatus);
+
+  // === 打印 ===
+  rpc CreatePrintJob(CreatePrintJobRequest) returns (PrintJob);
+  rpc GetPrintJob(GetPrintJobRequest) returns (PrintJob);
+  rpc ListPrintJobs(ListPrintJobsRequest) returns (ListPrintJobsResponse);
+  rpc ConfirmPrint(ConfirmPrintRequest) returns (PrintResult);
+  rpc CancelPrintJob(CancelPrintJobRequest) returns (CancelPrintJobResponse);
+  rpc WatchPrintJobs(WatchPrintJobsRequest) returns (stream PrintJobEvent);
+
+  // === 音频 ===
+  rpc StartRecording(StartRecordingRequest) returns (RecordingStatus);
+  rpc StopRecording(StopRecordingRequest) returns (RecordingResult);
+  rpc PlayAudio(PlayAudioRequest) returns (PlayAudioResponse);
+  rpc StopPlayback(StopPlaybackRequest) returns (StopPlaybackResponse);
+
+  // === 预览（云端图片） ===
+  rpc GetPreview(GetPreviewRequest) returns (PreviewData);
+  rpc WatchPreview(WatchPreviewRequest) returns (stream PreviewNotification);
+
+  // === 家长锁 ===
+  rpc GetParentLockStatus(GetParentLockStatusRequest) returns (ParentLockStatus);
+  rpc ValidatePin(ValidatePinRequest) returns (ValidatePinResponse);
+  rpc SetPin(SetPinRequest) returns (SetPinResponse);
+  rpc UnlockDevice(UnlockDeviceRequest) returns (UnlockDeviceResponse);
+
+  // === 设置 ===
+  rpc GetSettings(GetSettingsRequest) returns (Settings);
+  rpc UpdateSetting(UpdateSettingRequest) returns (UpdateSettingResponse);
+  rpc FactoryReset(FactoryResetRequest) returns (FactoryResetResponse);
+
+  // === WiFi ===
+  rpc ListWiFiNetworks(ListWiFiNetworksRequest) returns (ListWiFiNetworksResponse);
+}
+
+// ============================================================
+// 枚举
+// ============================================================
+
+enum ContentMode {
+  CONTENT_MODE_UNSPECIFIED = 0;
+  CONTENT_MODE_AI_CREATE = 1;    // AI 创作
+  CONTENT_MODE_COLORING = 2;     // 涂色乐园
+  CONTENT_MODE_TEMPLATE = 3;     // 趣味模板
+  CONTENT_MODE_MY_WORKS = 4;     // 我的作品
+}
+
+enum PrintJobStatus {
+  PRINT_JOB_STATUS_UNSPECIFIED = 0;
+  PRINT_JOB_STATUS_QUEUED = 1;       // 排队中
+  PRINT_JOB_STATUS_PRINTING = 2;     // 打印中
+  PRINT_JOB_STATUS_COMPLETED = 3;    // 完成
+  PRINT_JOB_STATUS_FAILED = 4;       // 失败
+  PRINT_JOB_STATUS_CANCELLED = 5;    // 已取消
+  PRINT_JOB_STATUS_PENDING_CONFIRM = 6; // 等待确认
+}
+
+enum ErrorCode {
+  ERROR_CODE_NONE = 0;
+  ERROR_CODE_NETWORK = 1;           // 网络不可用
+  ERROR_CODE_AUDIT_REJECT = 2;      // 内容审核拒绝
+  ERROR_CODE_PAPER_JAM = 3;         // 卡纸
+  ERROR_CODE_OUT_OF_PAPER = 4;      // 缺纸
+  ERROR_CODE_OVERHEAT = 5;          // 过热
+  ERROR_CODE_PRINTER_BUSY = 6;      // 打印机忙
+  ERROR_CODE_INTERNAL = 7;          // 内部错误
+  ERROR_CODE_NO_AUDIO = 8;          // 无法录音
+  ERROR_CODE_TIMEOUT = 9;           // 超时
+  ERROR_CODE_CANCELLED = 10;        // 用户取消
+}
+
+enum DeviceConnectionState {
+  DEVICE_CONNECTION_UNSPECIFIED = 0;
+  DEVICE_CONNECTION_ONLINE = 1;     // 在线
+  DEVICE_CONNECTION_OFFLINE = 2;    // 离线
+  DEVICE_CONNECTION_WEAK = 3;       // 弱网
+}
+
+enum AudioState {
+  AUDIO_STATE_IDLE = 0;
+  AUDIO_STATE_RECORDING = 1;        // 录音中
+  AUDIO_STATE_PLAYING = 2;          // 播放中
+}
+
+// ============================================================
+// 消息
+// ============================================================
+
+// ---- 设备 ----
+
+message GetDeviceInfoRequest {}
+
+message DeviceInfo {
+  string device_id = 1;
+  string firmware_version = 2;
+  string hardware_model = 3;        // e.g. "RK3568 K1 MINI"
+  int64 uptime_seconds = 4;
+  string os_version = 5;            // e.g. "Debian 12 Bookworm"
+  int32 battery_percent = 6;
+  int32 storage_free_mb = 7;
+}
+
+message WatchDeviceStatusRequest {}
+
+message DeviceStatus {
+  DeviceConnectionState connection = 1;
+  int32 battery_percent = 2;
+  int32 storage_free_mb = 3;
+  string printer_state = 4;         // "ready", "printing", "error", "offline"
+  int32 queue_depth = 5;            // 打印队列深度
+  AudioState audio_state = 6;
+  bool parent_lock_active = 7;
+  int64 temperature_celsius = 8;    // 机内温度
+}
+
+// ---- 打印 ----
+
+message CreatePrintJobRequest {
+  ContentMode content_mode = 1;
+  string preview_image_url = 2;      // 云端预览 URL
+  bytes preview_image_data = 3;      // 本地预览图（可选）
+  int32 copies = 4;                  // 打印份数，默认 1
+}
+
+message PrintJob {
+  string job_id = 1;
+  ContentMode content_mode = 2;
+  PrintJobStatus status = 3;
+  ErrorCode error_code = 4;
+  string error_message = 5;
+  string preview_image_url = 6;
+  int32 copies = 7;
+  int64 created_at_unix = 8;
+  int64 completed_at_unix = 9;
+}
+
+message GetPrintJobRequest {
+  string job_id = 1;
+}
+
+message ListPrintJobsRequest {
+  int32 limit = 1;                   // 最多 N 条，默认 20
+  PrintJobStatus status_filter = 2;  // 按状态过滤（可选）
+}
+
+message ListPrintJobsResponse {
+  repeated PrintJob jobs = 1;
+}
+
+message ConfirmPrintRequest {
+  string job_id = 1;
+  bool confirmed = 2;                // true = 确认打印，false = 放弃
+}
+
+message PrintResult {
+  bool success = 1;
+  string job_id = 2;
+  ErrorCode error_code = 3;
+  string error_message = 4;
+}
+
+message CancelPrintJobRequest {
+  string job_id = 1;
+}
+
+message CancelPrintJobResponse {
+  bool success = 1;
+  string job_id = 2;
+}
+
+message WatchPrintJobsRequest {
+  // 订阅所有打印任务变更
+}
+
+message PrintJobEvent {
+  string job_id = 1;
+  PrintJobStatus old_status = 2;
+  PrintJobStatus new_status = 3;
+  ErrorCode error_code = 4;
+}
+
+// ---- 音频 ----
+
+message StartRecordingRequest {
+  // 开始 PTT 录音
+}
+
+message RecordingStatus {
+  bool started = 1;
+  string error_message = 2;
+}
+
+message StopRecordingRequest {
+  // 停止 PTT 录音
+}
+
+message RecordingResult {
+  string audio_path = 1;             // PCM/WAV 本地路径
+  int32 duration_ms = 2;
+  int32 sample_rate = 3;             // 采样率（Hz）
+}
+
+message PlayAudioRequest {
+  string audio_path = 1;             // 本地音频文件路径
+  AudioType audio_type = 2;          // 音频类型
+}
+
+enum AudioType {
+  AUDIO_TYPE_UNSPECIFIED = 0;
+  AUDIO_TYPE_TTS = 1;                // TTS 提示音
+  AUDIO_TYPE_EFFECT = 2;             // 音效（按键、完成等）
+}
+
+message PlayAudioResponse {
+  bool started = 1;
+}
+
+message StopPlaybackRequest {}
+
+message StopPlaybackResponse {
+  bool stopped = 1;
+}
+
+// ---- 预览 ----
+
+message GetPreviewRequest {
+  string job_id = 1;
+}
+
+message PreviewData {
+  string job_id = 1;
+  string image_url = 2;              // 云端预览 URL
+  bytes thumbnail = 3;               // 本地缩略图（可选）
+  int32 width_px = 4;
+  int32 height_px = 5;
+}
+
+message WatchPreviewRequest {
+  string job_id = 1;                 // 可选：监听特定 job
+}
+
+message PreviewNotification {
+  string job_id = 1;
+  string image_url = 2;
+  bool ready = 3;                    // true = 预览就绪
+  ErrorCode error_code = 4;
+}
+
+// ---- 家长锁 ----
+
+message GetParentLockStatusRequest {}
+
+message ParentLockStatus {
+  bool locked = 1;                   // 当前是否锁定
+  bool pin_set = 2;                  // PIN 是否已设置
+  int32 remaining_attempts = 3;      // 剩余尝试次数
+  bool lockout_active = 4;           // 是否已锁死（多次失败）
+}
+
+message ValidatePinRequest {
+  string pin = 1;
+}
+
+message ValidatePinResponse {
+  bool valid = 1;
+  int32 remaining_attempts = 2;
+}
+
+message SetPinRequest {
+  string old_pin = 1;                // 首次设置时传空
+  string new_pin = 2;
+}
+
+message SetPinResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+message UnlockDeviceRequest {
+  string pin = 1;
+}
+
+message UnlockDeviceResponse {
+  bool unlocked = 1;
+}
+
+// ---- WiFi ----
+
+message ListWiFiNetworksRequest {}
+
+message WiFiNetwork {
+  string ssid = 1;
+  int32 signal_strength = 2;        // 0-100
+  bool secured = 3;                 // 是否加密
+}
+
+message ListWiFiNetworksResponse {
+  repeated WiFiNetwork networks = 1;
+}
+
+// ---- 设置 ----
+
+message GetSettingsRequest {}
+
+message Settings {
+  bool wifi_enabled = 1;
+  string wifi_ssid = 2;
+  int32 volume_percent = 3;
+  int32 brightness_percent = 4;
+  ContentMode default_mode = 5;
+  string device_name = 6;
+}
+
+message UpdateSettingRequest {
+  string key = 1;                    // e.g. "volume_percent", "wifi_ssid"
+  string value = 2;                  // 字符串值
+}
+
+message UpdateSettingResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+message FactoryResetRequest {}
+
+message FactoryResetResponse {
+  bool success = 1;
+}

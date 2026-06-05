@@ -1,0 +1,39 @@
+# fancy-print-ui — 奇想印印端侧儿童触屏 UI（静态文件 HTTP 服务）
+#
+# 通过 edge-ui-server 提供 React 构建产物的 HTTP 服务，
+# 供 kiosk 浏览器（WPE WebKit / Chromium kiosk 模式）加载。
+#
+# 安装：
+#   cp fancy-print-ui.service /etc/systemd/system/
+#   systemctl daemon-reload
+#   systemctl enable --now fancy-print-ui
+#
+# 对应 doc/3 §2.1 进程模型
+
+[Unit]
+Description=FancyPrint UI — kiosk web server for touch UI
+Documentation=https://github.com/fancy-print/fancy-print
+After=network.target edge-daemon.service
+BindsTo=edge-daemon.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/edge-ui-server -addr :3000 -root /usr/share/fancy-print-ui
+Restart=always
+RestartSec=5
+
+# 安全
+User=fancy-print
+Group=fancy-print
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadOnlyPaths=/usr/share/fancy-print-ui
+
+# 日志
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

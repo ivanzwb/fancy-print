@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { config } from 'dotenv';
 import { RequestMethod } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import {
@@ -12,12 +13,11 @@ import { httpRequestsTotal, metricsRegistry } from './common/metrics';
 
 /** 创建 Nest 应用（未 listen）。供 HTTP 入口与纯 BullMQ Worker 共用。 */
 export async function createApplication(): Promise<NestFastifyApplication> {
+  config(); // load .env file
   parseBaseEnv(process.env);
   initAuditLog();
-  const app = await NestFactory.create<NestFastifyApplication>(
-    AppModule,
-    new FastifyAdapter(),
-  );
+  const adapter = new FastifyAdapter();
+  const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter);
   app.useGlobalFilters(new HttpExceptionFilter());
   app.setGlobalPrefix('v1', {
     exclude: [
@@ -26,7 +26,28 @@ export async function createApplication(): Promise<NestFastifyApplication> {
     ],
   });
 
+  // Register custom JSON parser that accepts empty bodies BEFORE NestJS
+  // registers its own during app.init(). Android sends Content-Type:
+  // application/json with an empty body (e.g., POST /v1/jobs/{id}/advance).
+  // Fastify's default JSON parser rejects empty bodies — return {} instead.
   const fastify = app.getHttpAdapter().getInstance();
+  fastify.addContentTypeParser('application/json', { parseAs: 'buffer' }, (_req, body, done) => {
+    if (body && body.length > 0) {
+      try {
+        done(null, JSON.parse(body.toString()));
+      } catch (err: unknown) {
+        const e = err instanceof Error ? err : new Error(String(err));
+        done(e);
+      }
+    } else {
+      done(null, {});
+    }
+  });
+  // Mark the adapter as already initialised so NestJS skips its own
+  // registerJsonContentParser / registerParserMiddleware during app.init().
+  // This avoids the FST_ERR_CTP_ALREADY_PRESENT conflict.
+  (adapter as unknown as { _isParserRegistered: boolean })._isParserRegistered = true;
+
   fastify.addHook('onRequest', (req, reply, done) => {
     const raw = req.headers['x-request-id'];
     const id =
@@ -45,6 +66,7 @@ export async function createApplication(): Promise<NestFastifyApplication> {
     if (ts) reply.header('tracestate', ts);
     done();
   });
+
   fastify.addHook('onResponse', (req, reply, done) => {
     httpRequestsTotal.inc({
       method: req.method,

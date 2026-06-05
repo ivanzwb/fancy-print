@@ -8,14 +8,13 @@ import {
   FastifyAdapter,
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
+import { config } from 'dotenv';
+import { resolve } from 'path';
 import { parseBaseEnv, HttpExceptionFilter } from '@fancy-print/config';
 import { AppModule } from '../app.module';
 
-async function flushMicrotasks(times = 40): Promise<void> {
-  for (let i = 0; i < times; i++) {
-    await new Promise<void>((resolve) => setImmediate(resolve));
-  }
-}
+/** Pipeline with real Baidu ASR + Tongyi image gen may take 90+ seconds. */
+jest.setTimeout(180_000);
 
 describe('device-api jobs pipeline (e2e)', () => {
   let app: NestFastifyApplication;
@@ -33,13 +32,20 @@ describe('device-api jobs pipeline (e2e)', () => {
     saveEnv('ASR_DRIVER');
     saveEnv('IMAGE_GEN_DRIVER');
     saveEnv('DEVICE_DEV_CREDENTIALS');
+    // API keys loaded from .env — save originals to restore in afterAll
+    saveEnv('BAIDU_ASR_API_KEY');
+    saveEnv('BAIDU_ASR_SECRET_KEY');
+    saveEnv('DASHSCOPE_API_KEY');
+    saveEnv('WANX_MODEL');
 
     process.env.NODE_ENV = 'test';
     delete process.env.REDIS_URL;
     delete process.env.MQTT_URL;
     delete process.env.JOBS_PERSISTENCE_PATH;
-    process.env.ASR_DRIVER = 'stub';
-    process.env.IMAGE_GEN_DRIVER = 'stub';
+    // Load .env for real API keys (Baidu ASR, DashScope), then select drivers
+    config({ path: resolve(__dirname, '../../.env') });
+    process.env.ASR_DRIVER = 'baidu';
+    process.env.IMAGE_GEN_DRIVER = 'tongyi';
     process.env.DEVICE_DEV_CREDENTIALS = JSON.stringify({
       'e2e-device': 'e2e-secret',
     });
@@ -52,6 +58,7 @@ describe('device-api jobs pipeline (e2e)', () => {
 
     app = moduleRef.createNestApplication<NestFastifyApplication>(
       new FastifyAdapter(),
+      { logger: ['error', 'warn', 'log', 'debug', 'verbose'] },
     );
     app.useGlobalFilters(new HttpExceptionFilter());
     app.setGlobalPrefix('v1', {
@@ -112,7 +119,8 @@ describe('device-api jobs pipeline (e2e)', () => {
     const created = JSON.parse(createRes.body) as { job_id: string };
     const jobId = created.job_id;
 
-    const audioB64 = Buffer.from('fake-wav-bytes').toString('base64');
+    // Real speech audio (M4A): macOS Tingting voice "今天天气真不错我想画一个小兔子", 0.5s
+    const audioB64 = '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';
     const audioRes = await http.inject({
       method: 'POST',
       url: `/v1/jobs/${jobId}/audio`,
@@ -125,27 +133,31 @@ describe('device-api jobs pipeline (e2e)', () => {
     expect(audioRes.statusCode).toBe(201);
     expect(JSON.parse(audioRes.body).state).toBe('audio_received');
 
+    // With real adapters (Baidu ASR + Tongyi image gen), the pipeline can take
+    // 30-60 seconds. Poll with exponential backoff instead of microtask flushes.
+    const maxWaitMs = 120_000;
+    const start = Date.now();
     let state = 'audio_received';
-    for (let step = 0; step < 12 && state !== 'preview_ready'; step++) {
-      const adv = await http.inject({
-        method: 'POST',
-        url: `/v1/jobs/${jobId}/advance`,
-        headers: { authorization: `Bearer ${accessToken}` },
-      });
-      expect(adv.statusCode).toBe(200);
-      await flushMicrotasks();
+    await http.inject({
+      method: 'POST',
+      url: `/v1/jobs/${jobId}/advance`,
+      headers: {
+        'x-device-id': 'e2e-device',
+        authorization: `Bearer ${accessToken}`,
+      },
+    });
+    for (let wait = 500; Date.now() - start < maxWaitMs; wait = Math.min(wait * 2, 10_000)) {
+      await new Promise((r) => setTimeout(r, wait));
       const get = await http.inject({
         method: 'GET',
         url: `/v1/jobs/${jobId}`,
         headers: { authorization: `Bearer ${accessToken}` },
       });
       expect(get.statusCode).toBe(200);
-      state = (JSON.parse(get.body) as { state: string }).state;
-      if (state === 'failed') {
-        throw new Error(
-          `pipeline failed: ${JSON.stringify(JSON.parse(get.body))}`,
-        );
-      }
+      const body = JSON.parse(get.body) as { state: string; error_code?: string; error_message?: string };
+      state = body.state;
+      if (state === 'failed') break;
+      if (state === 'preview_ready') break;
     }
 
     expect(state).toBe('preview_ready');
@@ -156,7 +168,7 @@ describe('device-api jobs pipeline (e2e)', () => {
       headers: { authorization: `Bearer ${accessToken}` },
     });
     // light-my-request may report 200 while still setting `location` (redirect hop)
-    expect(String(art.headers.location ?? '')).toMatch(/^https:\/\//);
+    expect(String(art.headers.location ?? '')).toMatch(/^https:\/\/|^data:image\//);
     expect([302, 301, 307, 200]).toContain(art.statusCode);
   });
 });

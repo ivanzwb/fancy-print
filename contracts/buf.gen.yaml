@@ -1,0 +1,18 @@
+version: v2
+plugins:
+  # Go message types
+  - local: protoc-gen-go
+    out: ../edge/debian/edge-daemon/internal/edgepb
+    opt: paths=source_relative
+  # Go gRPC server/client stubs
+  - local: protoc-gen-go-grpc
+    out: ../edge/debian/edge-daemon/internal/edgepb
+    opt: paths=source_relative
+  # TypeScript message types (ES module)
+  - local: protoc-gen-es
+    out: ../edge/debian/fancy-print-ui/src/gen
+    opt: target=ts+ts
+  # TypeScript Connect-Web client
+  - local: protoc-gen-connect-es
+    out: ../edge/debian/fancy-print-ui/src/gen
+    opt: target=ts+ts

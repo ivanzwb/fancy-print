@@ -39,3 +39,6 @@ apps/parent/**/*.iml
 
 # Coverage
 coverage/
+
+.android-sdk/
+.omo/

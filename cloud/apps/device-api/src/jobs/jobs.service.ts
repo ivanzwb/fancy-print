@@ -63,6 +63,7 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(JobsService.name);
   private persistTimer?: ReturnType<typeof setTimeout>;
   private persistPath?: string;
+  private readonly inProgressJobs = new Set<string>();
 
   constructor(
     private readonly store: JobStateStoreService,
@@ -142,6 +143,9 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
         const job = await this.store.getJob(existingId);
         if (job) {
           this.assertDevice(job, input.device_id);
+          this.logger.log(
+            `[CREATE][job_id=${job.job_id}] IDEMPOTENT_REPLAY: device_id=${input.device_id}`,
+          );
           return cloneJobForApi({ ...job });
         }
       }
@@ -170,6 +174,9 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
         const winner = winnerId ? await this.store.getJob(winnerId) : undefined;
         if (winner) {
           this.assertDevice(winner, input.device_id);
+          this.logger.log(
+            `[CREATE][job_id=${winner.job_id}] IDEMPOTENT_REPLAY2: device_id=${input.device_id}`,
+          );
           return cloneJobForApi({ ...winner });
         }
       }
@@ -177,6 +184,11 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
 
     this.mqtt.publishJobStatus(job);
     this.schedulePersist();
+
+    this.logger.log(
+      `[CREATE][job_id=${jobId}] DONE: device_id=${input.device_id}, ` +
+        `content_mode=${mode}, child_profile_id=${input.child_profile_id ?? 'none'}`,
+    );
 
     writeAuditLog({
       service: 'device-api',
@@ -188,6 +200,73 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
     });
 
     return cloneJobForApi({ ...job });
+  }
+
+  /**
+   * Create a job from an ASR transcript (skips audio upload and ASR pipeline steps).
+   * Used by the standalone ASR endpoint to trigger image generation after transcription.
+   *
+   * Creates the job in `asr_complete` state with the transcript already set,
+   * then runs the pipeline asynchronously: moderation → image generation → preview.
+   */
+  async createJobFromTranscript(input: {
+    content_mode: string;
+    device_id: string;
+    transcript: string;
+  }): Promise<JobRecord> {
+    const mode = input.content_mode?.trim();
+    if (!mode) {
+      throw new BadRequestException({
+        code: 'INVALID_CONTENT_MODE',
+        message: 'content_mode is required',
+      });
+    }
+
+    const now = new Date().toISOString();
+    const jobId = randomUUID();
+    const job: JobRecord = {
+      job_id: jobId,
+      device_id: input.device_id,
+      content_mode: mode,
+      state: 'asr_complete',
+      transcript: input.transcript,
+      policy_version: 1,
+      created_at: now,
+      updated_at: now,
+    };
+
+    await this.store.setJob(job);
+    this.mqtt.publishJobStatus(job);
+    this.schedulePersist();
+
+    this.pipelineQueue.enqueue(jobId, input.device_id, () =>
+      this.runFullPipeline(jobId, input.device_id),
+    );
+
+    return cloneJobForApi({ ...job });
+  }
+
+  private async runFullPipeline(
+    jobId: string,
+    deviceId: string,
+  ): Promise<void> {
+    try {
+      const working = await this.requireJob(jobId);
+      while (
+        working.state !== 'preview_ready' &&
+        working.state !== 'failed' &&
+        working.state !== 'print_acknowledged'
+      ) {
+        await this.advancePipelineAsync(working);
+        working.updated_at = new Date().toISOString();
+        await this.store.setJob(working);
+        this.mqtt.publishJobStatus(working);
+        this.schedulePersist();
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Full pipeline failed job_id=${jobId}: ${msg}`);
+    }
   }
 
   /**
@@ -218,13 +297,22 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
       job.state === 'print_acknowledged' ||
       job.state === 'preview_ready'
     ) {
+      this.logger.log(
+        `[ADVANCE][job_id=${jobId}] NO_OP: state=${job.state} (terminal or idle)`,
+      );
       return cloneJobForApi({ ...job });
     }
     if (job.state === 'created') {
       // No audio yet — nothing to advance
+      this.logger.log(
+        `[ADVANCE][job_id=${jobId}] NO_OP: state=created (no audio yet)`,
+      );
       return cloneJobForApi({ ...job });
     }
 
+    this.logger.log(
+      `[ADVANCE][job_id=${jobId}] START: state=${job.state}, device_id=${deviceId}`,
+    );
     this.pipelineQueue.enqueue(jobId, deviceId, () =>
       this.runBackgroundAdvance(jobId, deviceId),
     );
@@ -237,6 +325,13 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
    * @see GitHub #13（水平扩展时 BullMQ 多 worker 共享此逻辑）
    */
   async runBackgroundAdvance(jobId: string, deviceId: string): Promise<void> {
+    if (this.inProgressJobs.has(jobId)) {
+      this.logger.warn(
+        `[PIPELINE][job_id=${jobId}] SKIP: already in progress`,
+      );
+      return;
+    }
+    this.inProgressJobs.add(jobId);
     try {
       if (this.store.usesRedis()) {
         const token = await this.store.acquireJobAdvanceLock(jobId);
@@ -262,8 +357,10 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error(
-        `Background advancement failed job_id=${jobId}: ${msg}`,
+        `[PIPELINE][job_id=${jobId}] ERROR: ${msg}`,
       );
+    } finally {
+      this.inProgressJobs.delete(jobId);
     }
   }
 
@@ -274,9 +371,21 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
     const job = await this.requireJob(jobId);
     this.assertDevice(job, deviceId);
     if (job.state !== 'preview_ready' && job.state !== 'print_acknowledged') {
+      this.logger.log(
+        `[ARTIFACT][job_id=${jobId}] NOT_READY: state=${job.state}`,
+      );
       return null;
     }
-    if (!job.preview_url) return null;
+    if (!job.preview_url) {
+      this.logger.warn(
+        `[ARTIFACT][job_id=${jobId}] MISSING_PREVIEW_URL: state=${job.state}`,
+      );
+      return null;
+    }
+    this.logger.log(
+      `[ARTIFACT][job_id=${jobId}] REDIRECT: preview_url=${job.preview_url.slice(0, 80)}..., ` +
+        `state=${job.state}`,
+    );
     return job.preview_url;
   }
 
@@ -334,6 +443,13 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
     await this.store.setJob(job);
     this.mqtt.publishJobStatus(job);
     this.schedulePersist();
+
+    this.logger.log(
+      `[AUDIO][job_id=${jobId}] RECEIVED: device_id=${deviceId}, ` +
+      `audio_base64_len=${capped?.length ?? 0}, ` +
+      `audio_s3_key=${job.audio_s3_key ?? 'none'}, state=audio_received`,
+    );
+
     return cloneJobForApi({ ...job });
   }
 
@@ -408,6 +524,11 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
       }
       job.updated_at = new Date().toISOString();
       if (raw.final) {
+        this.logger.log(
+          `[AUDIO][job_id=${jobId}] CHUNKS_DONE: device_id=${deviceId}, ` +
+          `total_chunks=${Object.keys(job.audio_chunk_buffers).length}, ` +
+          `final_seq=${seq}`,
+        );
         const merged = this.mergeAudioChunks(job);
         delete job.chunks_max_seq;
         delete job.audio_chunk_buffers;
@@ -486,6 +607,12 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
     this.mqtt.publishJobStatus(job);
     this.schedulePersist();
 
+    this.logger.log(
+      `[PRINT_ACK][job_id=${jobId}] DONE: device_id=${deviceId}, ` +
+        `idempotency_key=${idempotencyKey?.slice(0, 20)}..., ` +
+        `accepted_at=${acceptedAt}`,
+    );
+
     writeAuditLog({
       service: 'device-api',
       event: 'print_acknowledged',
@@ -532,52 +659,107 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
 
   private async advancePipelineAsync(job: JobRecord): Promise<void> {
     if (job.state === 'failed' || job.state === 'print_acknowledged') return;
-
-    const idx = PIPELINE_AFTER_AUDIO.indexOf(job.state as JobState);
-    if (idx === -1) return;
-    if (idx >= PIPELINE_AFTER_AUDIO.length - 1) return;
-
-    const now = new Date();
-    const next = PIPELINE_AFTER_AUDIO[idx + 1] as JobState;
-    job.state = next;
-    job.updated_at = now.toISOString();
-    let outcome = 'ok';
-
+    if (this.inProgressJobs.has(job.job_id)) return;
+    this.inProgressJobs.add(job.job_id);
     try {
-      if (next === 'asr_complete') {
-        job.transcript = await this.vendorFacade.resolveTranscript(job);
-      } else if (next === 'moderation_passed') {
-        const mod = await this.vendorFacade.moderateTranscript(job);
-        if (!mod.ok) {
-          this.markFailed(job, mod.reason_code);
-          outcome = 'failed';
-        }
-      } else if (next === 'image_generation') {
-        const gen = await this.vendorFacade.runImageGeneration(job);
-        if (!gen.ok) {
-          this.markFailed(job, gen.reason_code);
-          outcome = 'failed';
-        }
-      } else if (next === 'preview_ready') {
-        const p = await this.vendorFacade.finalizePreview(job, now.getTime());
-        job.preview_url = p.url;
-        job.preview_url_expires_at = p.expiresAtIso;
-      }
-    } catch {
-      this.markFailed(job, 'PIPELINE_UPSTREAM_ERROR');
-      outcome = 'failed';
-    }
+      let idx = PIPELINE_AFTER_AUDIO.indexOf(job.state as JobState);
+      if (idx === -1) return;
+      if (idx >= PIPELINE_AFTER_AUDIO.length - 1) return;
 
-    // Audit: log pipeline advancement (sensitive fields like transcript stripped by stripPii)
-    writeAuditLog({
-      service: 'device-api',
-      event: 'job_advanced',
-      job_id: job.job_id,
-      device_id: job.device_id,
-      outcome,
-      error_code: job.error_code ?? undefined,
-      details: { from_state: PIPELINE_AFTER_AUDIO[idx], to_state: next },
-    });
+      // Advance through ALL remaining states in one go, so a single advance call
+      // drives the job from audio_received all the way to preview_ready.
+      while (idx < PIPELINE_AFTER_AUDIO.length - 1) {
+        const fromState = job.state;
+        const next = PIPELINE_AFTER_AUDIO[idx + 1] as JobState;
+        const now = new Date();
+        job.state = next;
+        job.updated_at = now.toISOString();
+        let outcome: 'ok' | 'failed' = 'ok';
+
+        this.logger.log(
+          `[PIPELINE][job_id=${job.job_id}] ADVANCING: ${fromState} → ${next}`,
+        );
+
+        try {
+          if (next === 'asr_complete') {
+            const t0 = Date.now();
+            job.transcript = await this.vendorFacade.resolveTranscript(job);
+            const ms = Date.now() - t0;
+            this.logger.log(
+              `[PIPELINE][job_id=${job.job_id}] ASR_DONE: ` +
+                `transcript="${job.transcript?.slice(0, 80)}${job.transcript && job.transcript.length > 80 ? '...' : ''}", ` +
+                `elapsed_ms=${ms}`,
+            );
+          } else if (next === 'moderation_passed') {
+            const t0 = Date.now();
+            const mod = await this.vendorFacade.moderateTranscript(job);
+            const ms = Date.now() - t0;
+            if (!mod.ok) {
+              this.markFailed(job, mod.reason_code);
+              outcome = 'failed';
+              this.logger.warn(
+                `[PIPELINE][job_id=${job.job_id}] MODERATION_REJECTED: ` +
+                  `reason_code=${mod.reason_code}, elapsed_ms=${ms}`,
+              );
+            } else {
+              this.logger.log(
+                `[PIPELINE][job_id=${job.job_id}] MODERATION_PASSED: elapsed_ms=${ms}`,
+              );
+            }
+          } else if (next === 'image_generation') {
+            const t0 = Date.now();
+            const gen = await this.vendorFacade.runImageGeneration(job);
+            const ms = Date.now() - t0;
+            if (!gen.ok) {
+              this.markFailed(job, gen.reason_code);
+              outcome = 'failed';
+              this.logger.error(
+                `[PIPELINE][job_id=${job.job_id}] IMAGE_GEN_FAILED: ` +
+                  `reason_code=${gen.reason_code}, elapsed_ms=${ms}`,
+              );
+            } else {
+              this.logger.log(
+                `[PIPELINE][job_id=${job.job_id}] IMAGE_GEN_DONE: elapsed_ms=${ms}`,
+              );
+            }
+          } else if (next === 'preview_ready') {
+            const t0 = Date.now();
+            const p = await this.vendorFacade.finalizePreview(job, now.getTime());
+            const ms = Date.now() - t0;
+            job.preview_url = p.url;
+            job.preview_url_expires_at = p.expiresAtIso;
+            this.logger.log(
+              `[PIPELINE][job_id=${job.job_id}] PREVIEW_READY: ` +
+                `preview_url=${p.url.slice(0, 80)}..., ` +
+                `expires_at=${p.expiresAtIso}, elapsed_ms=${ms}`,
+            );
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          this.markFailed(job, 'PIPELINE_UPSTREAM_ERROR');
+          outcome = 'failed';
+          this.logger.error(
+            `[PIPELINE][job_id=${job.job_id}] ERROR: ${msg}`,
+          );
+        }
+
+        // Audit: log pipeline advancement (sensitive fields like transcript stripped by stripPii)
+        writeAuditLog({
+          service: 'device-api',
+          event: 'job_advanced',
+          job_id: job.job_id,
+          device_id: job.device_id,
+          outcome,
+          error_code: job.error_code ?? undefined,
+          details: { from_state: fromState, to_state: next },
+        });
+
+        if (outcome === 'failed') break;
+        idx++;
+      }
+    } finally {
+      this.inProgressJobs.delete(job.job_id);
+    }
   }
 
   private markFailed(job: JobRecord, code: string) {

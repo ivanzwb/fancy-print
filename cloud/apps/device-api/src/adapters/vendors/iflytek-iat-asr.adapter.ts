@@ -155,6 +155,11 @@ export class IflytekIatAsrAdapter implements AsrAdapter {
       });
 
       ws.on('open', () => {
+        this.logger.log(
+          `[ASR][job_id=${input.jobId}] WS_OPEN: host=${host}, ` +
+          `encoding=${encoding}, format=${format}, language=${language}, ` +
+          `audio_buf_len=${audioBuf.length}, timeout_ms=${timeoutMs}`,
+        );
         void (async () => {
           try {
             if (audioBuf.length <= FRAME_SIZE) {
@@ -199,6 +204,10 @@ export class IflytekIatAsrAdapter implements AsrAdapter {
                 offset = end;
               }
             }
+            this.logger.log(
+              `[ASR][job_id=${input.jobId}] WS_SENT: audio_buf_len=${audioBuf.length}, ` +
+              `frames_sent=${audioBuf.length > FRAME_SIZE ? Math.ceil(audioBuf.length / FRAME_SIZE) : 1}`,
+            );
           } catch (e) {
             finish(e);
           }
@@ -212,7 +221,14 @@ export class IflytekIatAsrAdapter implements AsrAdapter {
           const piece = extractTextFromIatMessage(j);
           if (piece) transcriptParts.push(piece);
           const d = j.data as { status?: number } | undefined;
-          if (d?.status === 2) finish();
+          if (d?.status === 2) {
+            this.logger.log(
+              `[ASR][job_id=${input.jobId}] WS_DONE: ` +
+              `transcript="${transcriptParts.join('').slice(0, 80)}${transcriptParts.join('').length > 80 ? '...' : ''}", ` +
+              `parts_count=${transcriptParts.length}`,
+            );
+            finish();
+          }
         } catch (e) {
           finish(e);
         }

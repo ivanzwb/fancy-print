@@ -153,7 +153,7 @@ describe('JobsController', () => {
     it('should call advanceJob with correct params', async () => {
       jobs.advanceJob.mockResolvedValue(sampleJob);
 
-      const result = await controller.advance(sampleJob.job_id, dev);
+      const result = await controller.advance(sampleJob.job_id, 'dev-1');
 
       expect(jobs.advanceJob).toHaveBeenCalledWith(sampleJob.job_id, 'dev-1');
       expect(result).toEqual(sampleJob);

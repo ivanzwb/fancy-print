@@ -2,10 +2,13 @@ import { Controller, Get, Param, Res } from '@nestjs/common';
 import type { FastifyReply } from 'fastify';
 import { CurrentDevice } from '../common/current-device.decorator';
 import { JobsService } from './jobs.service';
+import { Logger } from '@nestjs/common';
 
 /** Doc §2.4.1: `GET /v1/jobs/{job_id}/artifact` — 302 to preview URL when ready. */
 @Controller('jobs')
 export class JobsArtifactController {
+  private readonly logger = new Logger(JobsArtifactController.name);
+
   constructor(private readonly jobs: JobsService) {}
 
   @Get(':jobId/artifact')
@@ -23,6 +26,9 @@ export class JobsArtifactController {
       });
       return;
     }
+    this.logger.log(
+      `[ARTIFACT][job_id=${jobId}] REDIRECT: device_id=${dev.device_id}, url=${url.slice(0, 80)}...`,
+    );
     void reply.redirect(url);
   }
 }

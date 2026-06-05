@@ -1,0 +1,42 @@
+# edge-daemon — 奇想印印端侧核心守护进程
+#
+# 安装：
+#   cp edge-daemon.service /etc/systemd/system/
+#   systemctl daemon-reload
+#   systemctl enable --now edge-daemon
+#
+# 对应 doc/3 §2.1 进程模型
+
+[Unit]
+Description=FancyPrint Edge Daemon — print queue, audio, GPIO, IPC (gRPC)
+Documentation=https://github.com/fancy-print/fancy-print
+After=network.target
+Wants=fancy-print-ui.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/edge-daemon -config /etc/fancy-print/config.yaml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+
+# 安全
+User=fancy-print
+Group=fancy-print
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/fancy-print /var/cache/fancy-print /dev/gpiomem
+ReadOnlyPaths=/etc/fancy-print
+
+# 设备访问（GPIO、音频）
+DeviceAllow=/dev/gpiomem rw
+DeviceAllow=/dev/snd rw
+
+# 日志
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

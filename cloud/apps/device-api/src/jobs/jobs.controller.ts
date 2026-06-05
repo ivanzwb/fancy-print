@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import type { FastifyReply } from 'fastify';
 import { CurrentDevice } from '../common/current-device.decorator';
+import { Public } from '../common/public.decorator';
 import { JobsService } from './jobs.service';
 
 @Controller('jobs')
@@ -45,13 +46,38 @@ export class JobsController {
     return await this.jobs.getJob(jobId, dev.device_id);
   }
 
+  /** Public status endpoint for device polling — uses x-device-id instead of JWT. */
+  @Public()
+  @Get(':jobId/status')
+  async getJobStatus(
+    @Param('jobId') jobId: string,
+    @Headers('x-device-id') deviceId?: string,
+  ) {
+    const devId = deviceId?.trim() || 'device-unknown';
+    const job = await this.jobs.getJob(jobId, devId);
+    return {
+      job_id: job.job_id,
+      state: job.state,
+      transcript: job.transcript,
+      preview_url: job.preview_url,
+      preview_url_expires_at: job.preview_url_expires_at,
+      error_code: job.error_code,
+      content_mode: job.content_mode,
+      created_at: job.created_at,
+      updated_at: job.updated_at,
+    };
+  }
+
+  /** Public advance endpoint for device polling — uses x-device-id instead of JWT. */
+  @Public()
   @Post(':jobId/advance')
   @HttpCode(HttpStatus.OK)
   async advance(
     @Param('jobId') jobId: string,
-    @CurrentDevice() dev: { device_id: string },
+    @Headers('x-device-id') deviceId?: string,
   ) {
-    return await this.jobs.advanceJob(jobId, dev.device_id);
+    const devId = deviceId?.trim() || 'device-unknown';
+    return await this.jobs.advanceJob(jobId, devId);
   }
 
   @Post(':jobId/audio')

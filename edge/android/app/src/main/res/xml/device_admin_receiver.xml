@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<device-admin xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-policies>
+        <!-- 锁定任务模式（Kiosk） -->
+        <lock-task />
+        <!-- 密码策略 -->
+        <limit-password />
+        <watch-login />
+        <reset-password />
+        <!-- 禁用摄像头（儿童模式） -->
+        <disable-camera />
+        <!-- 出厂重置保护 -->
+        <wipe-data />
+    </uses-policies>
+</device-admin>

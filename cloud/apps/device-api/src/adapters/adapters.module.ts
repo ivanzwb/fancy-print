@@ -4,6 +4,8 @@ import { S3PreviewService } from './s3-preview.service';
 import { VendorFacadeService } from './vendor-facade.service';
 import { VendorHttpService } from './vendor-http.service';
 import { VendorStubsService } from './vendor-stubs.service';
+import { BaiduAsrAdapter } from './vendors/baidu-asr.adapter';
+import { BaiduWenxinImageGenAdapter } from './vendors/baidu-wenxin-image-gen.adapter';
 import { IflytekIatAsrAdapter } from './vendors/iflytek-iat-asr.adapter';
 import { StubAsrAdapter } from './vendors/stub-asr.adapter';
 import { StubImageGenAdapter } from './vendors/stub-image-gen.adapter';
@@ -21,21 +23,23 @@ import { ASR_ADAPTER, IMAGE_GEN_ADAPTER } from './vendors/vendor-adapters.tokens
     StubAsrAdapter,
     StubImageGenAdapter,
     IflytekIatAsrAdapter,
+    BaiduAsrAdapter,
+    BaiduWenxinImageGenAdapter,
     TongyiWanxiangImageGenAdapter,
     {
       provide: ASR_ADAPTER,
       useFactory: createAsrAdapter,
-      inject: [IflytekIatAsrAdapter, StubAsrAdapter],
+      inject: [IflytekIatAsrAdapter, BaiduAsrAdapter, StubAsrAdapter],
     },
     {
       provide: IMAGE_GEN_ADAPTER,
       useFactory: createImageGenAdapter,
-      inject: [TongyiWanxiangImageGenAdapter, StubImageGenAdapter],
+      inject: [TongyiWanxiangImageGenAdapter, BaiduWenxinImageGenAdapter, StubImageGenAdapter],
     },
     S3PreviewService,
     S3AudioStagingService,
     VendorFacadeService,
   ],
-  exports: [VendorFacadeService, VendorStubsService, S3AudioStagingService],
+  exports: [VendorFacadeService, VendorStubsService, S3AudioStagingService, ASR_ADAPTER],
 })
 export class AdaptersModule {}

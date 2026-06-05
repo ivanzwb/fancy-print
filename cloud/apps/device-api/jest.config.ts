@@ -1,11 +1,19 @@
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 import type { Config } from 'jest';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const config: Config = {
   moduleFileExtensions: ['js', 'json', 'ts'],
   rootDir: 'src',
   testRegex: '.*\\.(spec|e2e-spec)\\.ts$',
   transform: {
-    '^.+\\.(t|j)s$': ['ts-jest', { tsconfig: 'tsconfig.jest.json' }],
+    '^.+\\.(t|j)s$': [
+      'ts-jest',
+      { tsconfig: resolve(__dirname, 'tsconfig.jest.json') },
+    ],
   },
   collectCoverageFrom: [
     '**/*.service.ts',

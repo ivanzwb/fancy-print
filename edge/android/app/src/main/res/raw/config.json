@@ -1,0 +1,21 @@
+{
+  "mqtt": {
+    "broker_url": "tcp://mqtt.fancy-print.local:1883",
+    "device_id": "",
+    "use_tls": false
+  },
+  "https": {
+    "base_url": "http://10.166.186.29:3000/v1",
+    "timeout_connect": 30,
+    "timeout_read": 60
+  },
+  "ota": {
+    "check_interval_hours": 24,
+    "package_name": "com.fancyprint.edge"
+  },
+  "print": {
+    "usb_mode": "png",
+    "ble_mode": "png",
+    "timeout_sec": 120
+  }
+}
