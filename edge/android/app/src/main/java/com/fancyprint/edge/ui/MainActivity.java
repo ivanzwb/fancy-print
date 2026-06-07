@@ -155,8 +155,9 @@ public class MainActivity extends AppCompatActivity {
         startForegroundService(intent);
         bindService(intent, connection, Context.BIND_AUTO_CREATE);
 
-        // 激活 Lock Task Mode（锁定在 Kiosk）
-        enableKioskMode();
+        // 激活 Lock Task Mode（仅在 kiosk/DPC 设备上生效）
+        // 测试时跳过，量产 kiosk 设备取消注释
+        // enableKioskMode();
 
         // Android 13+ 请求通知权限（kiosk 场景使用 DPC 预授权或直接请求）
         requestNotificationPermission();
@@ -226,8 +227,8 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         // 每次恢复时重新进入沉浸模式（防止系统栏意外出现）
         enableFullScreenImmersive();
-        // 确保 Lock Task Mode 仍激活
-        ensureKioskActive();
+        // 确保 Lock Task Mode 仍激活（kiosk 模式）
+        // ensureKioskActive();
     }
 
     @Override
@@ -347,24 +348,22 @@ public class MainActivity extends AppCompatActivity {
         Log.w(TAG, "DPC not provisioned — device admin not active, "
                 + "Lock Task Mode may be unavailable");
 
-        // 尝试通过 provisioning intent 引导用户完成配置
-        try {
-            Intent provisioningIntent = new Intent(
-                    DevicePolicyManager.ACTION_PROVISION_MANAGED_DEVICE);
-            provisioningIntent.putExtra(
-                    DevicePolicyManager.EXTRA_PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME,
-                    admin);
-            provisioningIntent.putExtra(
-                    DevicePolicyManager.EXTRA_PROVISIONING_SKIP_ENCRYPTION, true);
-            // 使用 NEW_TASK 因为可能来自 boot
-            provisioningIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(provisioningIntent);
-            Log.i(TAG, "Provisioning intent launched");
-        } catch (Exception e) {
-            Log.w(TAG, "Cannot launch provisioning (device already managed or UI not available): "
-                    + e.getMessage());
-            // 设备可能已被其他方式管理，或当前场景不支持 provisioning
-        }
+        // DPC 配置仅在 kiosk 量产设备上需要，测试/调试阶段跳过
+        // 取消下面注释以启用设备管理：
+        // try {
+        //     Intent provisioningIntent = new Intent(
+        //             DevicePolicyManager.ACTION_PROVISION_MANAGED_DEVICE);
+        //     provisioningIntent.putExtra(
+        //             DevicePolicyManager.EXTRA_PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME,
+        //             admin);
+        //     provisioningIntent.putExtra(
+        //             DevicePolicyManager.EXTRA_PROVISIONING_SKIP_ENCRYPTION, true);
+        //     provisioningIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        //     startActivity(provisioningIntent);
+        //     Log.i(TAG, "Provisioning intent launched");
+        // } catch (Exception e) {
+        //     Log.w(TAG, "Cannot launch provisioning: " + e.getMessage());
+        // }
     }
 
     private boolean isLockTaskModeActive() {
@@ -508,52 +507,61 @@ public class MainActivity extends AppCompatActivity {
     private void startPttRecording() {
         if (!bound || daemonService == null) return;
         try {
-            boolean started = daemonService.startRecording();
-            if (started) {
+            // 使用 PCM 录制（16kHz 16bit mono），供本地 Sherpa-ONNX 离线 ASR
+            String pcmPath = daemonService.startPcmRecording();
+            if (pcmPath != null && !pcmPath.isEmpty()) {
                 isRecording = true;
                 pttButton.setColorFilter(0xFFFF4444, android.graphics.PorterDuff.Mode.SRC_IN);
                 statusText.setText("录音中...");
             }
         } catch (RemoteException e) {
-            Log.e(TAG, "startRecording error", e);
+            Log.e(TAG, "startPcmRecording error", e);
         }
     }
 
     private void stopPttRecording() {
         if (!bound || daemonService == null || !isRecording) return;
-        try {
-            String audioPath = daemonService.stopRecording();
-            isRecording = false;
-            pttButton.setColorFilter(0xFFFFAA00, android.graphics.PorterDuff.Mode.SRC_IN);
-            statusText.setText("语音识别中...");
-            Log.i(TAG, "PTT recording saved: " + audioPath);
+        // 标记录音结束（UI 操作仍在主线程）
+        isRecording = false;
+        pttButton.setColorFilter(0xFFFFAA00, android.graphics.PorterDuff.Mode.SRC_IN);
+        statusText.setText("语音识别中...");
 
-            if (audioPath != null && !audioPath.isEmpty()) {
-                daemonService.transcribeAudio(audioPath, new IAsrCallback.Stub() {
-                    @Override
-                    public void onSuccess(String transcription) {
-                        runOnUiThread(() -> {
-                            pttButton.clearColorFilter();
-                            statusText.setText(transcription);
-                        });
-                    }
+        // AIDL 调用放到后台线程，避免阻塞 UI 导致 ANR
+        final IEdgeDaemonService service = daemonService;
+        new Thread(() -> {
+            try {
+                String pcmPath = service.stopPcmRecording();
+                Log.i(TAG, "PTT PCM recording saved: " + pcmPath);
 
-                    @Override
-                    public void onError(int code, String message) {
-                        runOnUiThread(() -> {
-                            pttButton.clearColorFilter();
-                            statusText.setText("识别失败: " + message);
-                        });
-                    }
-                });
-            } else {
-                pttButton.clearColorFilter();
-                statusText.setText("录音为空");
+                if (pcmPath != null && !pcmPath.isEmpty()) {
+                    service.transcribeAudio(pcmPath, new IAsrCallback.Stub() {
+                        @Override
+                        public void onSuccess(String transcription) {
+                            runOnUiThread(() -> {
+                                pttButton.clearColorFilter();
+                                statusText.setText(transcription);
+                            });
+                        }
+
+                        @Override
+                        public void onError(int code, String message) {
+                            runOnUiThread(() -> {
+                                pttButton.clearColorFilter();
+                                statusText.setText("识别失败: " + message);
+                            });
+                        }
+                    });
+                } else {
+                    runOnUiThread(() -> {
+                        pttButton.clearColorFilter();
+                        statusText.setText("录音为空");
+                    });
+                }
+            } catch (RemoteException e) {
+                Log.e(TAG, "stopPcmRecording error", e);
+                runOnUiThread(() -> pttButton.clearColorFilter());
             }
-        } catch (RemoteException e) {
-            Log.e(TAG, "stopRecording error", e);
-            pttButton.clearColorFilter();
-        }
+        }, "ptt-asr").start();
     }
 
     // ============================================================

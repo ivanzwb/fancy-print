@@ -51,7 +51,7 @@
         <service
             android:name=".service.EdgeDaemonService"
             android:exported="false"
-            android:foregroundServiceType="dataSync|connectedDevice"
+            android:foregroundServiceType="dataSync"
             android:persistent="true">
             <intent-filter>
                 <action android:name="com.fancyprint.edge.action.START_DAEMON" />

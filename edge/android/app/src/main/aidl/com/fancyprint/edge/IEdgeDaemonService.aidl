@@ -79,12 +79,30 @@ interface IEdgeDaemonService {
      */
     void stopAudio();
 
+    // ---- PCM 录制（本地 Sherpa-ONNX ASR） ----
+
     /**
-     * 上传录音进行 ASR 语音识别
-     * @param audioPath 录音文件路径
+     * 开始 PCM 录制（16kHz 16bit mono），供本地离线 ASR 使用
+     * @return PCM 文件路径，失败返回空
+     */
+    String startPcmRecording();
+
+    /**
+     * 停止 PCM 录制并返回 PCM 文件路径
+     * @return PCM 文件路径，失败返回空
+     */
+    String stopPcmRecording();
+
+    // ---- ASR 语音识别 ----
+
+    /**
+     * 上传录音进行 ASR 语音识别（本地 Sherpa-ONNX 优先，云端 fallback）
+     * 当 audioPath 为 .pcm 文件时，优先使用本地离线 ASR
+     * oneway：异步调用，结果通过 callback 返回，不阻塞 UI 线程
+     * @param audioPath 录音文件路径（.pcm 或 .mp4）
      * @param callback 识别结果回调
      */
-    void transcribeAudio(String audioPath, IAsrCallback callback);
+    oneway void transcribeAudio(String audioPath, IAsrCallback callback);
 
     // ============================================================
     // 云连接

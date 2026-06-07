@@ -17,6 +17,7 @@ import com.fancyprint.edge.IAsrCallback;
 import com.fancyprint.edge.IEdgeDaemonService;
 import com.fancyprint.edge.IPrintJobCallback;
 import com.fancyprint.edge.R;
+import com.fancyprint.edge.asr.SherpaAsrService;
 import com.fancyprint.edge.audio.AudioController;
 import com.fancyprint.edge.cloud.ApiClient;
 import com.fancyprint.edge.cloud.CloudConnectorService;
@@ -341,17 +342,38 @@ public class EdgeDaemonService extends Service {
             audioController.stopAudio();
         }
 
+        // ---- PCM 录制（本地离线 ASR） ----
+
+        @Override
+        public String startPcmRecording() {
+            return audioController.startPcmRecording();
+        }
+
+        @Override
+        public String stopPcmRecording() {
+            return audioController.stopPcmRecording();
+        }
+
+        // ---- ASR 语音识别 ----
+
         @Override
         public void transcribeAudio(String audioPath, IAsrCallback callback) {
-            // Try local Sherpa-ONNX ASR first
-            if (sherpaAsr != null) {
-                String text = sherpaAsr.transcribePcmFile(audioPath);
-                if (text != null && !text.isEmpty()) {
-                    Log.i(TAG, "transcribe: local ASR success, text=\"" + text + "\"");
-                    callback.onSuccess(text);
-                    return;
+            // 如果是 PCM 文件，优先尝试本地 Sherpa-ONNX 离线 ASR
+            if (sherpaAsr != null && audioPath != null && audioPath.endsWith(".pcm")) {
+                // 确保模型已加载（懒加载）
+                if (!sherpaAsr.isLoaded()) {
+                    Log.i(TAG, "Lazy-loading Sherpa-ONNX model");
+                    sherpaAsr.loadModel();
                 }
-                Log.w(TAG, "Local ASR failed, falling back to cloud ASR");
+                if (sherpaAsr.isLoaded()) {
+                    String text = sherpaAsr.transcribePcmFile(audioPath);
+                    if (text != null && !text.isEmpty()) {
+                        Log.i(TAG, "transcribe: local ASR success, text=\"" + text + "\"");
+                        try { callback.onSuccess(text); } catch (Exception ignored) {}
+                        return;
+                    }
+                }
+                Log.w(TAG, "Local ASR failed or returned empty, falling back to cloud ASR");
             }
             // Fallback: cloud ASR
             cloudConnector.uploadAudio(audioPath, new ApiClient.ApiCallback() {
@@ -372,19 +394,6 @@ public class EdgeDaemonService extends Service {
                         try { callback.onError(500, "识别结果解析失败"); } catch (Exception ignored) {}
                     }
                 }
-                @Override
-                public void onError(int code, String message) {
-                    Log.e(TAG, "transcribe: upload error " + code + " " + message);
-                    try { callback.onError(code, message); } catch (Exception ignored) {}
-                }
-            });
-        }
-                    } catch (Exception e) {
-                        Log.e(TAG, "transcribe: parse error", e);
-                        try { callback.onError(500, "识别结果解析失败"); } catch (Exception ignored) {}
-                    }
-                }
-
                 @Override
                 public void onError(int code, String message) {
                     Log.e(TAG, "transcribe: upload error " + code + " " + message);

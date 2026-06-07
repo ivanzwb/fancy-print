@@ -237,9 +237,12 @@ public class AudioController {
     }
 
     // ============================================================
+    // PCM 录制（16kHz 16bit mono，供本地 Sherpa-ONNX ASR 使用）
+    // ============================================================
     private AudioRecord audioRecord;
     private boolean isPcmRecording = false;
     private Thread pcmRecordingThread;
+    private String pcmRecordingPath; // 当前 PCM 录制文件路径
 
     /**
      * 开始 PCM 录制（16kHz 16bit mono）
@@ -254,17 +257,17 @@ public class AudioController {
             int sampleRate = 16000;
             int channelConfig = AudioFormat.CHANNEL_IN_MONO;
             int audioFormat = AudioFormat.ENCODING_PCM_16BIT;
-            int bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat);
-            if (bufferSize <= 0) bufferSize = 4096;
+            int minBuf = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat);
+            final int bufferSize = minBuf > 0 ? minBuf : 4096;
 
             String fileName = "pcm_" + System.currentTimeMillis() + ".pcm";
-            String pcmPath = new File(recordingsDir, fileName).getAbsolutePath();
+            pcmRecordingPath = new File(recordingsDir, fileName).getAbsolutePath();
 
             audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, sampleRate, channelConfig, audioFormat, bufferSize);
             audioRecord.startRecording();
             isPcmRecording = true;
 
-            final String finalPcmPath = pcmPath;
+            final String finalPcmPath = pcmRecordingPath;
             pcmRecordingThread = new Thread(() -> {
                 try (FileOutputStream fos = new FileOutputStream(finalPcmPath)) {
                     byte[] buffer = new byte[bufferSize];
@@ -278,10 +281,11 @@ public class AudioController {
             });
             pcmRecordingThread.start();
 
-            Log.i(TAG, "PCM recording started: " + pcmPath);
-            return pcmPath;
+            Log.i(TAG, "PCM recording started: " + pcmRecordingPath);
+            return pcmRecordingPath;
         } catch (Exception e) {
             Log.e(TAG, "Failed to start PCM recording", e);
+            pcmRecordingPath = null;
             return "";
         }
     }
@@ -298,16 +302,17 @@ public class AudioController {
         try {
             isPcmRecording = false;
             if (pcmRecordingThread != null) {
-                pcmRecordingThread.join(2000);
+                pcmRecordingThread.join(500);
             }
             audioRecord.stop();
-            result = currentRecordingPath; // PCM 文件路径
+            result = pcmRecordingPath != null ? pcmRecordingPath : "";
             Log.i(TAG, "PCM recording saved: " + result);
         } catch (Exception e) {
             Log.e(TAG, "Failed to stop PCM recording", e);
         } finally {
             try { audioRecord.release(); } catch (Exception ignored) {}
             audioRecord = null;
+            pcmRecordingPath = null;
         }
         return result;
     }
@@ -360,81 +365,6 @@ public class AudioController {
         fos.write((value >> 8) & 0xFF);
         fos.write((value >> 16) & 0xFF);
         fos.write((value >> 24) & 0xFF);
-    }
-
-    private AudioRecord audioRecord;
-    private boolean isPcmRecording = false;
-    private Thread pcmRecordingThread;
-
-    /**
-     * 开始 PCM 录制（16kHz 16bit mono）
-     * 返回 PCM 数据文件路径
-     */
-    public String startPcmRecording() {
-        if (isPcmRecording) {
-            Log.w(TAG, "Already PCM recording");
-            return "";
-        }
-        try {
-            int sampleRate = 16000;
-            int channelConfig = AudioFormat.CHANNEL_IN_MONO;
-            int audioFormat = AudioFormat.ENCODING_PCM_16BIT;
-            int bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat);
-            if (bufferSize <= 0) bufferSize = 4096;
-
-            String fileName = "pcm_" + System.currentTimeMillis() + ".pcm";
-            String pcmPath = new File(recordingsDir, fileName).getAbsolutePath();
-
-            audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, sampleRate, channelConfig, audioFormat, bufferSize);
-            audioRecord.startRecording();
-            isPcmRecording = true;
-
-            final String finalPcmPath = pcmPath;
-            pcmRecordingThread = new Thread(() -> {
-                try (FileOutputStream fos = new FileOutputStream(finalPcmPath)) {
-                    byte[] buffer = new byte[bufferSize];
-                    while (isPcmRecording) {
-                        int read = audioRecord.read(buffer, 0, buffer.length);
-                        if (read > 0) fos.write(buffer, 0, read);
-                    }
-                } catch (Exception e) {
-                    Log.e(TAG, "PCM recording error", e);
-                }
-            });
-            pcmRecordingThread.start();
-
-            Log.i(TAG, "PCM recording started: " + pcmPath);
-            return pcmPath;
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to start PCM recording", e);
-            return "";
-        }
-    }
-
-    /**
-     * 停止 PCM 录制并返回文件路径
-     */
-    public String stopPcmRecording() {
-        if (!isPcmRecording || audioRecord == null) {
-            Log.w(TAG, "Not PCM recording");
-            return "";
-        }
-        String result = "";
-        try {
-            isPcmRecording = false;
-            if (pcmRecordingThread != null) {
-                try { pcmRecordingThread.join(2000); } catch (InterruptedException ignored) {}
-            }
-            audioRecord.stop();
-            result = currentRecordingPath; // PCM 文件路径
-            Log.i(TAG, "PCM recording saved: " + result);
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to stop PCM recording", e);
-        } finally {
-            try { audioRecord.release(); } catch (Exception ignored) {}
-            audioRecord = null;
-        }
-        return result;
     }
 
     private static void writeShortLE(FileOutputStream fos, short value) throws IOException {
