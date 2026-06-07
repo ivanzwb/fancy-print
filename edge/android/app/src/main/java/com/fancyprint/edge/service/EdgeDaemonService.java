@@ -287,6 +287,30 @@ public class EdgeDaemonService extends Service {
         });
     }
 
+    /**
+     * 本地 ASR 成功后，提交文字到云端生图管道，预览 URL 通过 callback 返回
+     */
+    private void submitTextToCloud(String text, IAsrCallback callback) {
+        executor.execute(() -> {
+            cloudConnector.createImageFromText(text, new ApiClient.ApiCallback() {
+                    @Override
+                    public void onSuccess(String response) {
+                        try {
+                            String previewUrl = new org.json.JSONObject(response).optString("preview_url", "");
+                            Log.i(TAG, "submitTextToCloud: preview ready, len=" + previewUrl.length());
+                            try { callback.onImageReady(previewUrl); } catch (Exception ignored) {}
+                        } catch (org.json.JSONException e) {
+                            Log.e(TAG, "submitTextToCloud parse error", e);
+                        }
+                    }
+                @Override
+                public void onError(int code, String message) {
+                    Log.w(TAG, "submitTextToCloud: error " + code + " " + message);
+                }
+            });
+        });
+    }
+
     // ============================================================
     // Binder — AIDL 实现
     // ============================================================
@@ -370,6 +394,9 @@ public class EdgeDaemonService extends Service {
                     if (text != null && !text.isEmpty()) {
                         Log.i(TAG, "transcribe: local ASR success, text=\"" + text + "\"");
                         try { callback.onSuccess(text); } catch (Exception ignored) {}
+
+                        // 本地 ASR 成功 → 提交文字到云端生图
+                        submitTextToCloud(text, callback);
                         return;
                     }
                 }

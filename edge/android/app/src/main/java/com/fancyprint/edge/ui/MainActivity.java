@@ -16,13 +16,17 @@ import android.os.RemoteException;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.util.Base64;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -59,6 +63,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView statusText;
     private TextView jobCountText;
     private ImageButton pttButton;
+    private ImageView previewImage;
     private boolean isRecording = false;
     private long pttDownTime = 0;
     private static final int MIN_PTT_MS = 2000; // 最短 PTT 按键 2 秒（Baidu ASR 需要至少 1 秒）
@@ -148,6 +153,7 @@ public class MainActivity extends AppCompatActivity {
         statusText = findViewById(R.id.status_text);
         jobCountText = findViewById(R.id.job_count);
         pttButton = findViewById(R.id.ptt_button);
+        previewImage = findViewById(R.id.preview_image);
 
         // 启动并绑定 EdgeDaemonService（Android 14+ 必须先 startForegroundService）
         Intent intent = new Intent(this, com.fancyprint.edge.service.EdgeDaemonService.class);
@@ -534,12 +540,35 @@ public class MainActivity extends AppCompatActivity {
                 Log.i(TAG, "PTT PCM recording saved: " + pcmPath);
 
                 if (pcmPath != null && !pcmPath.isEmpty()) {
-                    service.transcribeAudio(pcmPath, new IAsrCallback.Stub() {
+                service.transcribeAudio(pcmPath, new IAsrCallback.Stub() {
                         @Override
                         public void onSuccess(String transcription) {
                             runOnUiThread(() -> {
                                 pttButton.clearColorFilter();
                                 statusText.setText(transcription);
+                            });
+                        }
+
+                        @Override
+                        public void onImageReady(String previewUrl) {
+                            runOnUiThread(() -> {
+                                try {
+                                    // 解析 data:image/png;base64,... 
+                                    String base64 = previewUrl;
+                                    if (previewUrl.startsWith("data:image")) {
+                                        base64 = previewUrl.substring(previewUrl.indexOf(",") + 1);
+                                    }
+                                    byte[] imageBytes = Base64.decode(base64, Base64.DEFAULT);
+                                    Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
+                                    if (bitmap != null) {
+                                        previewImage.setImageBitmap(bitmap);
+                                        previewImage.setVisibility(View.VISIBLE);
+                                        statusText.setText(statusText.getText() + "\n✅ 图片已生成");
+                                    }
+                                } catch (Exception e) {
+                                    Log.e(TAG, "onImageReady decode error", e);
+                                    statusText.setText(statusText.getText() + "\n图片解析失败");
+                                }
                             });
                         }
 

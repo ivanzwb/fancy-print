@@ -1,11 +1,11 @@
 {
   "mqtt": {
-    "broker_url": "tcp://mqtt.fancy-print.local:1883",
+    "broker_url": "tcp://127.0.0.1:1883",
     "device_id": "",
     "use_tls": false
   },
   "https": {
-    "base_url": "http://10.166.186.29:3000/v1",
+    "base_url": "http://127.0.0.1:3001/v1",
     "timeout_connect": 30,
     "timeout_read": 60
   },

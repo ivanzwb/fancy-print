@@ -5,6 +5,7 @@
         <domain includeSubdomains="true">fancy-print.local</domain>
         <domain includeSubdomains="true">10.0.2.2</domain>
         <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
         <domain includeSubdomains="true">10.166.186.29</domain>
     </domain-config>
     <!-- 生产环境仅 HTTPS -->

@@ -15,6 +15,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import com.fancyprint.edge.config.AppConfig;
@@ -49,6 +51,7 @@ public class ApiClient {
 
     private final Context context;
     private final OkHttpClient httpClient;
+    private final ExecutorService executor;
     private AppConfig appConfig;
     private Handler mainHandler;
 
@@ -63,6 +66,7 @@ public class ApiClient {
                 .readTimeout(timeoutRead, TimeUnit.SECONDS)
                 .writeTimeout(timeoutRead, TimeUnit.SECONDS)
                 .build();
+        this.executor = Executors.newSingleThreadExecutor();
         this.mainHandler = new Handler(context.getMainLooper());
     }
 
@@ -308,6 +312,101 @@ public class ApiClient {
             Log.e(TAG, "Failed to create EncryptedSharedPreferences, falling back", e);
             return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         }
+    }
+
+    /**
+     * 设备认证 + 文字生图一站式方法
+     * 1. POST /v1/auth/device 获取 token
+     * 2. POST /v1/jobs 创建 job
+     * 3. POST /v1/jobs/:id/text 提交文字
+     * 4. 轮询 GET /v1/jobs/:id 直到 preview_ready
+     */
+    public void createImageFromText(String transcript, ApiCallback callback) {
+        executor.execute(() -> {
+            try {
+                // 1. Auth
+                String authBody = "{\"device_id\":\"fancy-print-dev\",\"device_secret\":\"fancy-print-secret\"}";
+                Request authReq = new Request.Builder()
+                        .url(BASE_URL + "/auth/device")
+                        .post(RequestBody.create(authBody, JSON))
+                        .build();
+                String authResp;
+                try (Response resp = httpClient.newCall(authReq).execute()) {
+                    authResp = resp.body() != null ? resp.body().string() : "";
+                }
+                String accessToken = new org.json.JSONObject(authResp).optString("access_token", "");
+                if (accessToken.isEmpty()) { postError(callback, 401, "Auth failed"); return; }
+                Log.i(TAG, "createImageFromText: authenticated");
+
+                // 2. Create job
+                String createBody = "{\"content_mode\":\"coloring_quiet_book\"}";
+                Request createReq = new Request.Builder()
+                        .url(BASE_URL + "/jobs")
+                        .post(RequestBody.create(createBody, JSON))
+                        .addHeader("Authorization", "Bearer " + accessToken)
+                        .build();
+                String createResp;
+                try (Response resp = httpClient.newCall(createReq).execute()) {
+                    createResp = resp.body() != null ? resp.body().string() : "";
+                }
+                String jobId = new org.json.JSONObject(createResp).optString("job_id", "");
+                if (jobId.isEmpty()) { postError(callback, 500, "No job_id"); return; }
+                Log.i(TAG, "createImageFromText: job=" + jobId);
+
+                // 3. Submit text
+                String escaped = transcript.replace("\\", "\\\\").replace("\"", "\\\"");
+                String textBody = "{\"transcript\":\"" + escaped + "\"}";
+                Request textReq = new Request.Builder()
+                        .url(BASE_URL + "/jobs/" + jobId + "/text")
+                        .post(RequestBody.create(textBody, JSON))
+                        .addHeader("Authorization", "Bearer " + accessToken)
+                        .build();
+                try (Response resp = httpClient.newCall(textReq).execute()) {
+                    if (!resp.isSuccessful()) {
+                        postError(callback, resp.code(), resp.body() != null ? resp.body().string() : "");
+                        return;
+                    }
+                }
+                Log.i(TAG, "createImageFromText: text submitted, polling...");
+
+                // 4. Poll for preview (up to 80s for real API)
+                String result = pollJobUntilReady(jobId, accessToken, 40, 2000);
+                if (result != null) {
+                    postSuccess(callback, result);
+                } else {
+                    postError(callback, 504, "Timeout");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "createImageFromText error", e);
+                postError(callback, 500, e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * 轮询 job 状态直到 preview_ready 或失败
+     */
+    private String pollJobUntilReady(String jobId, String accessToken,
+                                     int maxRetries, int intervalMs) throws Exception {
+        for (int i = 0; i < maxRetries; i++) {
+            Thread.sleep(intervalMs);
+            Request pollReq = new Request.Builder()
+                    .url(BASE_URL + "/jobs/" + jobId)
+                    .get()
+                    .addHeader("Authorization", "Bearer " + accessToken)
+                    .build();
+            String body;
+            try (Response resp = httpClient.newCall(pollReq).execute()) {
+                body = resp.body() != null ? resp.body().string() : "";
+                if (!resp.isSuccessful()) return null;
+            }
+            org.json.JSONObject json = new org.json.JSONObject(body);
+            String state = json.optString("state", "");
+            Log.d(TAG, "pollJob[" + jobId + "] attempt=" + i + " state=" + state);
+            if ("preview_ready".equals(state)) return body;
+            if ("failed".equals(state)) return body;
+        }
+        return null;
     }
 
     private String getDeviceId() {

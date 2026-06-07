@@ -208,4 +208,27 @@ public class CloudConnectorService {
     public MqttClientManager getMqttClient() {
         return mqttClient;
     }
+
+    /**
+     * 创建文字生图任务 — 创建 job + 提交文字 + 轮询预览
+     * @deprecated Use createImageFromText instead
+     */
+    public void createImageJob(String transcript, String accessToken,
+                               ApiClient.ApiCallback callback) {
+        apiClient.createImageFromText(transcript, callback);
+    }
+
+    /**
+     * 获取 API base URL（供外部拼接认证等 URL）
+     */
+    public String getBaseUrl() {
+        return appConfig.getHttpsBaseUrl();
+    }
+
+    /**
+     * 设备认证 + 文字生图全流程（auth → create job → submit text → poll preview）
+     */
+    public void createImageFromText(String transcript, ApiClient.ApiCallback callback) {
+        apiClient.createImageFromText(transcript, callback);
+    }
 }

@@ -89,6 +89,16 @@ export class JobsController {
     return await this.jobs.attachAudio(jobId, dev.device_id, body?.audio_base64);
   }
 
+  /** 提交已识别的文字（跳过云端 ASR，直接推进到生图管道） */
+  @Post(':jobId/text')
+  async attachText(
+    @Param('jobId') jobId: string,
+    @CurrentDevice() dev: { device_id: string },
+    @Body() body?: { transcript?: string },
+  ) {
+    return await this.jobs.attachText(jobId, dev.device_id, body?.transcript);
+  }
+
   @Post(':jobId/chunks')
   async uploadChunks(
     @Param('jobId') jobId: string,

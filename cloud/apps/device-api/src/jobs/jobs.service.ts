@@ -453,6 +453,49 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
     return cloneJobForApi({ ...job });
   }
 
+  /**
+   * 提交已识别文字，跳过云端 ASR，直接进入生图管道。
+   *
+   * 用于端侧已完成本地 ASR（Sherpa-ONNX）的场景：
+   *  job state → asr_complete → pipeline auto-advance → preview_ready
+   */
+  async attachText(
+    jobId: string,
+    deviceId: string,
+    transcript?: string,
+  ): Promise<JobRecord> {
+    const job = await this.requireJob(jobId);
+    this.assertDevice(job, deviceId);
+    if (!transcript || !transcript.trim()) {
+      throw new BadRequestException({
+        code: 'TRANSCRIPT_EMPTY',
+        message: 'transcript is required and must not be empty',
+      });
+    }
+    if (job.state !== 'created') {
+      throw new ConflictException({
+        code: 'INVALID_JOB_STATE',
+        message: `Cannot attach text in state ${job.state}, expected created`,
+      });
+    }
+    job.transcript = transcript.trim();
+    job.state = 'asr_complete';
+    job.updated_at = new Date().toISOString();
+    delete (job as any).audio_base64;
+    await this.store.setJob(job);
+    this.mqtt.publishJobStatus(job);
+    this.schedulePersist();
+    this.logger.log(
+      `[TEXT][job_id=${jobId}] RECEIVED: device_id=${deviceId}, transcript="${job.transcript.slice(0, 80)}", state=asr_complete`,
+    );
+
+    // Auto-advance through pipeline (moderation → image gen → preview)
+    this.pipelineQueue.enqueue(jobId, deviceId, () =>
+      this.runBackgroundAdvance(jobId, deviceId),
+    );
+    return cloneJobForApi({ ...job });
+  }
+
   async uploadChunk(
     jobId: string,
     deviceId: string,
@@ -659,7 +702,6 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
 
   private async advancePipelineAsync(job: JobRecord): Promise<void> {
     if (job.state === 'failed' || job.state === 'print_acknowledged') return;
-    if (this.inProgressJobs.has(job.job_id)) return;
     this.inProgressJobs.add(job.job_id);
     try {
       let idx = PIPELINE_AFTER_AUDIO.indexOf(job.state as JobState);
