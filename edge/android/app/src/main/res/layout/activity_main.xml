@@ -145,11 +145,13 @@
 
         <ImageView
             android:id="@+id/preview_image"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
             android:scaleType="fitCenter"
-            android:layout_margin="8dp" />
+            android:background="#22000000"
+            android:layout_margin="8dp"
+            android:contentDescription="AI 生成图片预览" />
 
         <LinearLayout
             android:layout_width="match_parent"

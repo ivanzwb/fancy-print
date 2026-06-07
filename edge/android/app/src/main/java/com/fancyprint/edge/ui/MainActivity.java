@@ -71,6 +71,8 @@ public class MainActivity extends AppCompatActivity {
     private Button printButton, cancelButton, cancelGenButton;
     private ProgressBar generatingProgress;
     private String currentPreviewUrl; // 当前预览图片的 base64 URL
+    private String currentTranscript; // 当前识别文字
+    private View bottomBar;
     private boolean isRecording = false;
     private long pttDownTime = 0;
     private static final int MIN_PTT_MS = 2000; // 最短 PTT 按键 2 秒（Baidu ASR 需要至少 1 秒）
@@ -170,6 +172,7 @@ public class MainActivity extends AppCompatActivity {
         printButton = findViewById(R.id.print_button);
         cancelButton = findViewById(R.id.cancel_button);
         cancelGenButton = findViewById(R.id.cancel_gen_button);
+        bottomBar = findViewById(R.id.bottom_bar);
 
         // 启动并绑定 EdgeDaemonService（Android 14+ 必须先 startForegroundService）
         Intent intent = new Intent(this, com.fancyprint.edge.service.EdgeDaemonService.class);
@@ -575,7 +578,7 @@ public class MainActivity extends AppCompatActivity {
                         public void onSuccess(String transcription) {
                             runOnUiThread(() -> {
                                 pttButton.clearColorFilter();
-                                // 切换到生成等待界面
+                                currentTranscript = transcription;
                                 showGeneratingMode(transcription);
                             });
                         }
@@ -592,8 +595,10 @@ public class MainActivity extends AppCompatActivity {
                                     byte[] imageBytes = Base64.decode(base64, Base64.DEFAULT);
                                     Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
                                     if (bitmap != null) {
-                                        previewImage.setImageBitmap(bitmap);
+                                        previewTranscript.setText(currentTranscript != null ? currentTranscript : "");
                                         showPreviewMode();
+                                        // 等 layout 完成后再设图，确保 ImageView 已测量
+                                        previewImage.post(() -> previewImage.setImageBitmap(bitmap));
                                     } else {
                                         statusText.setText("图片解码失败，请重试");
                                         showVoiceMode();
@@ -671,7 +676,9 @@ public class MainActivity extends AppCompatActivity {
         voiceContainer.setVisibility(View.VISIBLE);
         generatingContainer.setVisibility(View.GONE);
         previewContainer.setVisibility(View.GONE);
+        bottomBar.setVisibility(View.VISIBLE);
         currentPreviewUrl = null;
+        currentTranscript = null;
         statusText.setText("");
         pttButton.clearColorFilter();
     }
@@ -680,6 +687,7 @@ public class MainActivity extends AppCompatActivity {
         voiceContainer.setVisibility(View.GONE);
         generatingContainer.setVisibility(View.VISIBLE);
         previewContainer.setVisibility(View.GONE);
+        bottomBar.setVisibility(View.GONE);
         generatingText.setText("🎨 AI 正在根据「" + transcript + "」生成图片...");
         generatingProgress.setVisibility(View.VISIBLE);
     }
@@ -688,6 +696,7 @@ public class MainActivity extends AppCompatActivity {
         voiceContainer.setVisibility(View.GONE);
         generatingContainer.setVisibility(View.GONE);
         previewContainer.setVisibility(View.VISIBLE);
+        bottomBar.setVisibility(View.GONE);
         generatingProgress.setVisibility(View.GONE);
     }
 }
