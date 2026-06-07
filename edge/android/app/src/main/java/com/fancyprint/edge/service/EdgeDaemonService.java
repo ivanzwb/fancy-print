@@ -298,7 +298,12 @@ public class EdgeDaemonService extends Service {
                         try {
                             String previewUrl = new org.json.JSONObject(response).optString("preview_url", "");
                             Log.i(TAG, "submitTextToCloud: preview ready, len=" + previewUrl.length());
-                            try { callback.onImageReady(previewUrl); } catch (Exception ignored) {}
+                            try {
+                                callback.onImageReady(previewUrl);
+                                Log.i(TAG, "submitTextToCloud: onImageReady called OK");
+                            } catch (Exception e) {
+                                Log.e(TAG, "submitTextToCloud: onImageReady FAILED", e);
+                            }
                         } catch (org.json.JSONException e) {
                             Log.e(TAG, "submitTextToCloud parse error", e);
                         }

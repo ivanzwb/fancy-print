@@ -553,21 +553,38 @@ public class MainActivity extends AppCompatActivity {
                         public void onImageReady(String previewUrl) {
                             runOnUiThread(() -> {
                                 try {
-                                    // 解析 data:image/png;base64,... 
+                                    Log.i(TAG, "onImageReady: url len=" + previewUrl.length()
+                                            + " starts=" + previewUrl.substring(0, Math.min(40, previewUrl.length())));
                                     String base64 = previewUrl;
                                     if (previewUrl.startsWith("data:image")) {
                                         base64 = previewUrl.substring(previewUrl.indexOf(",") + 1);
                                     }
+                                    Log.i(TAG, "onImageReady: base64 len=" + base64.length());
                                     byte[] imageBytes = Base64.decode(base64, Base64.DEFAULT);
+                                    Log.i(TAG, "onImageReady: decoded bytes=" + imageBytes.length);
                                     Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
                                     if (bitmap != null) {
+                                        Log.i(TAG, "onImageReady: bitmap " + bitmap.getWidth() + "x" + bitmap.getHeight());
+                                        // 保存到文件以便验证
+                                        try {
+                                            java.io.FileOutputStream fos = new java.io.FileOutputStream(
+                                                    new java.io.File(getFilesDir(), "preview.png"));
+                                            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+                                            fos.close();
+                                            Log.i(TAG, "onImageReady: saved to " + getFilesDir() + "/preview.png");
+                                        } catch (Exception e) {
+                                            Log.e(TAG, "onImageReady: save failed", e);
+                                        }
                                         previewImage.setImageBitmap(bitmap);
                                         previewImage.setVisibility(View.VISIBLE);
                                         statusText.setText(statusText.getText() + "\n✅ 图片已生成");
+                                    } else {
+                                        Log.e(TAG, "onImageReady: decodeByteArray returned null");
+                                        statusText.setText(statusText.getText() + "\n图片解码失败");
                                     }
                                 } catch (Exception e) {
                                     Log.e(TAG, "onImageReady decode error", e);
-                                    statusText.setText(statusText.getText() + "\n图片解析失败");
+                                    statusText.setText(statusText.getText() + "\n图片解析失败: " + e.getMessage());
                                 }
                             });
                         }
