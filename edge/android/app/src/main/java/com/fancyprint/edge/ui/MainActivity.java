@@ -22,8 +22,10 @@ import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.util.Base64;
@@ -64,6 +66,11 @@ public class MainActivity extends AppCompatActivity {
     private TextView jobCountText;
     private ImageButton pttButton;
     private ImageView previewImage;
+    private View voiceContainer, generatingContainer, previewContainer;
+    private TextView previewTranscript, generatingText;
+    private Button printButton, cancelButton, cancelGenButton;
+    private ProgressBar generatingProgress;
+    private String currentPreviewUrl; // 当前预览图片的 base64 URL
     private boolean isRecording = false;
     private long pttDownTime = 0;
     private static final int MIN_PTT_MS = 2000; // 最短 PTT 按键 2 秒（Baidu ASR 需要至少 1 秒）
@@ -154,6 +161,15 @@ public class MainActivity extends AppCompatActivity {
         jobCountText = findViewById(R.id.job_count);
         pttButton = findViewById(R.id.ptt_button);
         previewImage = findViewById(R.id.preview_image);
+        voiceContainer = findViewById(R.id.voice_container);
+        generatingContainer = findViewById(R.id.generating_container);
+        previewContainer = findViewById(R.id.preview_container);
+        previewTranscript = findViewById(R.id.preview_transcript);
+        generatingText = findViewById(R.id.generating_text);
+        generatingProgress = findViewById(R.id.generating_progress);
+        printButton = findViewById(R.id.print_button);
+        cancelButton = findViewById(R.id.cancel_button);
+        cancelGenButton = findViewById(R.id.cancel_gen_button);
 
         // 启动并绑定 EdgeDaemonService（Android 14+ 必须先 startForegroundService）
         Intent intent = new Intent(this, com.fancyprint.edge.service.EdgeDaemonService.class);
@@ -219,6 +235,20 @@ public class MainActivity extends AppCompatActivity {
             }
             startActivity(confirmIntent);
         });
+
+        // 预览界面 — 打印按钮
+        printButton.setOnClickListener(v -> {
+            if (currentPreviewUrl != null && !currentPreviewUrl.isEmpty()) {
+                // TODO: 将 base64 图片发送到打印队列
+                Toast.makeText(this, "打印功能开发中", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // 预览界面 — 取消，回到语音输入
+        cancelButton.setOnClickListener(v -> showVoiceMode());
+
+        // 生成界面 — 取消
+        cancelGenButton.setOnClickListener(v -> showVoiceMode());
 
         // 检查 DPC 设备管理员/Device Owner 激活状态
         checkDpcProvisioning();
@@ -545,46 +575,33 @@ public class MainActivity extends AppCompatActivity {
                         public void onSuccess(String transcription) {
                             runOnUiThread(() -> {
                                 pttButton.clearColorFilter();
-                                statusText.setText(transcription);
+                                // 切换到生成等待界面
+                                showGeneratingMode(transcription);
                             });
                         }
 
                         @Override
                         public void onImageReady(String previewUrl) {
                             runOnUiThread(() -> {
+                                currentPreviewUrl = previewUrl;
                                 try {
-                                    Log.i(TAG, "onImageReady: url len=" + previewUrl.length()
-                                            + " starts=" + previewUrl.substring(0, Math.min(40, previewUrl.length())));
                                     String base64 = previewUrl;
                                     if (previewUrl.startsWith("data:image")) {
                                         base64 = previewUrl.substring(previewUrl.indexOf(",") + 1);
                                     }
-                                    Log.i(TAG, "onImageReady: base64 len=" + base64.length());
                                     byte[] imageBytes = Base64.decode(base64, Base64.DEFAULT);
-                                    Log.i(TAG, "onImageReady: decoded bytes=" + imageBytes.length);
                                     Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
                                     if (bitmap != null) {
-                                        Log.i(TAG, "onImageReady: bitmap " + bitmap.getWidth() + "x" + bitmap.getHeight());
-                                        // 保存到文件以便验证
-                                        try {
-                                            java.io.FileOutputStream fos = new java.io.FileOutputStream(
-                                                    new java.io.File(getFilesDir(), "preview.png"));
-                                            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
-                                            fos.close();
-                                            Log.i(TAG, "onImageReady: saved to " + getFilesDir() + "/preview.png");
-                                        } catch (Exception e) {
-                                            Log.e(TAG, "onImageReady: save failed", e);
-                                        }
                                         previewImage.setImageBitmap(bitmap);
-                                        previewImage.setVisibility(View.VISIBLE);
-                                        statusText.setText(statusText.getText() + "\n✅ 图片已生成");
+                                        showPreviewMode();
                                     } else {
-                                        Log.e(TAG, "onImageReady: decodeByteArray returned null");
-                                        statusText.setText(statusText.getText() + "\n图片解码失败");
+                                        statusText.setText("图片解码失败，请重试");
+                                        showVoiceMode();
                                     }
                                 } catch (Exception e) {
-                                    Log.e(TAG, "onImageReady decode error", e);
-                                    statusText.setText(statusText.getText() + "\n图片解析失败: " + e.getMessage());
+                                    Log.e(TAG, "onImageReady error", e);
+                                    statusText.setText("图片解析失败");
+                                    showVoiceMode();
                                 }
                             });
                         }
@@ -594,6 +611,7 @@ public class MainActivity extends AppCompatActivity {
                             runOnUiThread(() -> {
                                 pttButton.clearColorFilter();
                                 statusText.setText("识别失败: " + message);
+                                showVoiceMode();
                             });
                         }
                     });
@@ -643,5 +661,33 @@ public class MainActivity extends AppCompatActivity {
         } catch (RemoteException e) {
             Log.e(TAG, "register callback error", e);
         }
+    }
+
+    // ============================================================
+    // 界面模式切换
+    // ============================================================
+
+    private void showVoiceMode() {
+        voiceContainer.setVisibility(View.VISIBLE);
+        generatingContainer.setVisibility(View.GONE);
+        previewContainer.setVisibility(View.GONE);
+        currentPreviewUrl = null;
+        statusText.setText("");
+        pttButton.clearColorFilter();
+    }
+
+    private void showGeneratingMode(String transcript) {
+        voiceContainer.setVisibility(View.GONE);
+        generatingContainer.setVisibility(View.VISIBLE);
+        previewContainer.setVisibility(View.GONE);
+        generatingText.setText("🎨 AI 正在根据「" + transcript + "」生成图片...");
+        generatingProgress.setVisibility(View.VISIBLE);
+    }
+
+    private void showPreviewMode() {
+        voiceContainer.setVisibility(View.GONE);
+        generatingContainer.setVisibility(View.GONE);
+        previewContainer.setVisibility(View.VISIBLE);
+        generatingProgress.setVisibility(View.GONE);
     }
 }
