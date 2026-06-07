@@ -595,12 +595,15 @@ public class MainActivity extends AppCompatActivity {
                                     byte[] imageBytes = Base64.decode(base64, Base64.DEFAULT);
                                     Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
                                     if (bitmap != null) {
+                                        Log.i(TAG, "onImageReady: showing preview, then setting bitmap");
                                         previewTranscript.setText(currentTranscript != null ? currentTranscript : "");
+                                        // 先显示容器，等布局完成后再设图——否则 ImageView 高度为 0，fitCenter 会把图缩成一条线
                                         showPreviewMode();
-                                        // 等 layout 完成后再设图，确保 ImageView 已测量
-                                        previewImage.post(() -> previewImage.setImageBitmap(bitmap));
+                                        final Bitmap bm = bitmap;
+                                        previewImage.post(() -> previewImage.setImageBitmap(bm));
+                                        Log.i(TAG, "onImageReady: preview mode shown, bitmap queued");
                                     } else {
-                                        statusText.setText("图片解码失败，请重试");
+                                        Log.e(TAG, "onImageReady: bitmap is null, showing voice");
                                         showVoiceMode();
                                     }
                                 } catch (Exception e) {
@@ -696,6 +699,7 @@ public class MainActivity extends AppCompatActivity {
         voiceContainer.setVisibility(View.GONE);
         generatingContainer.setVisibility(View.GONE);
         previewContainer.setVisibility(View.VISIBLE);
+        previewContainer.bringToFront();
         bottomBar.setVisibility(View.GONE);
         generatingProgress.setVisibility(View.GONE);
     }

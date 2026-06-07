@@ -8,7 +8,7 @@ import type { AsrAdapter } from './vendors/asr-adapter.interface';
 import type { ImageGenAdapter } from './vendors/image-gen-adapter.interface';
 import { ASR_ADAPTER, IMAGE_GEN_ADAPTER } from './vendors/vendor-adapters.tokens';
 
-const DATA_URL_MAX = 120_000;
+const DATA_URL_MAX = 5_000_000; // 足够容纳 1024×1024 PNG (~2.5MB base64)
 
 @Injectable()
 export class VendorFacadeService {
