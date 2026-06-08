@@ -403,7 +403,16 @@ public class ApiClient {
             org.json.JSONObject json = new org.json.JSONObject(body);
             String state = json.optString("state", "");
             Log.d(TAG, "pollJob[" + jobId + "] attempt=" + i + " state=" + state);
-            if ("preview_ready".equals(state)) return body;
+            if ("preview_ready".equals(state)) {
+                // 防御性检查：确保 preview_url 已就绪再返回
+                // （后端修复前曾出现过 state=preview_ready 但 preview_url 尚未写入的竞态条件）
+                String previewUrl = json.optString("preview_url", "");
+                if (!previewUrl.isEmpty()) {
+                    return body;
+                }
+                Log.w(TAG, "pollJob[" + jobId + "] state=preview_ready but preview_url empty, retrying...");
+                continue;
+            }
             if ("failed".equals(state)) return body;
         }
         return null;

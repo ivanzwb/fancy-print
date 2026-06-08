@@ -7,12 +7,6 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
-    <!-- 蓝牙（ZINK 蓝牙打印） -->
-    <uses-permission android:name="android.permission.BLUETOOTH" />
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
-
     <!-- USB（ZINK USB 打印） -->
     <uses-permission android:name="android.permission.USB_PERMISSION" />
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />

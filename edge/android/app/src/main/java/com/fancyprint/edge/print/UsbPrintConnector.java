@@ -28,6 +28,10 @@ public class UsbPrintConnector {
     private static final int USB_ENDPOINT_XFER_BULK = 2;
     private static final int USB_DIR_OUT = 0;
     private static final String ACTION_USB_PERMISSION = "com.fancyprint.edge.USB_PERMISSION";
+    private static final int USB_TIMEOUT_MS = 5000;
+    
+    /** CPCL 模式切换命令（ESC/POS → CPCL） */
+    private static final byte[] CPCL_SWITCH_CMD = new byte[]{0x1d, 0x49, 0x60, 0x01};
 
     private final Context context;
     private final UsbManager usbManager;
@@ -138,6 +142,19 @@ public class UsbPrintConnector {
             return false;
         }
 
+        // 切换到 CPCL 模式
+        try {
+            int sent = connection.bulkTransfer(outEndpoint, CPCL_SWITCH_CMD, CPCL_SWITCH_CMD.length, USB_TIMEOUT_MS);
+            if (sent < 0) {
+                Log.w(TAG, "CPCL switch command failed, but continuing anyway");
+            } else {
+                Log.i(TAG, "CPCL mode switch sent (" + sent + " bytes)");
+                Thread.sleep(300);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
         Log.i(TAG, "USB printer connected: " + device.getProductName());
         return true;
     }
@@ -154,10 +171,10 @@ public class UsbPrintConnector {
 
         try {
             int offset = 0;
-            int chunkSize = outEndpoint.getMaxPacketSize();
+            int chunkSize = outEndpoint.getMaxPacketSize() * 16;
             while (offset < data.length) {
                 int len = Math.min(chunkSize, data.length - offset);
-                int written = connection.bulkTransfer(outEndpoint, data, offset, len, 5000);
+                int written = connection.bulkTransfer(outEndpoint, data, offset, len, USB_TIMEOUT_MS);
                 if (written < 0) {
                     Log.e(TAG, "USB write failed at offset " + offset);
                     return false;

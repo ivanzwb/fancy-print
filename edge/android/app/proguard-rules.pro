@@ -33,3 +33,18 @@
 -keep class com.google.gson.** { *; }
 -keepattributes Signature
 -keepattributes *Annotation*
+
+# Keep CPCL SDK (com.lingmoyun.instruction.cpcl.*)
+-keep class com.lingmoyun.instruction.** { *; }
+-keep class com.lingmoyun.instruction.cpcl.** { *; }
+-dontwarn com.lingmoyun.instruction.**
+
+# Keep USB Serial drivers
+-keep class com.hoho.android.usbserial.** { *; }
+-dontwarn com.hoho.android.usbserial.**
+
+# Keep printer utilities
+-keep class com.fancyprint.edge.print.BitmapUtils { *; }
+-keep class com.fancyprint.edge.print.HexByteUtils { *; }
+-keep class com.fancyprint.edge.print.PrinterOrder { *; }
+-keep class com.fancyprint.edge.print.mdns.** { *; }

@@ -714,8 +714,6 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
         const fromState = job.state;
         const next = PIPELINE_AFTER_AUDIO[idx + 1] as JobState;
         const now = new Date();
-        job.state = next;
-        job.updated_at = now.toISOString();
         let outcome: 'ok' | 'failed' = 'ok';
 
         this.logger.log(
@@ -727,6 +725,7 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
             const t0 = Date.now();
             job.transcript = await this.vendorFacade.resolveTranscript(job);
             const ms = Date.now() - t0;
+            job.state = next;
             this.logger.log(
               `[PIPELINE][job_id=${job.job_id}] ASR_DONE: ` +
                 `transcript="${job.transcript?.slice(0, 80)}${job.transcript && job.transcript.length > 80 ? '...' : ''}", ` +
@@ -744,6 +743,7 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
                   `reason_code=${mod.reason_code}, elapsed_ms=${ms}`,
               );
             } else {
+              job.state = next;
               this.logger.log(
                 `[PIPELINE][job_id=${job.job_id}] MODERATION_PASSED: elapsed_ms=${ms}`,
               );
@@ -760,6 +760,7 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
                   `reason_code=${gen.reason_code}, elapsed_ms=${ms}`,
               );
             } else {
+              job.state = next;
               this.logger.log(
                 `[PIPELINE][job_id=${job.job_id}] IMAGE_GEN_DONE: elapsed_ms=${ms}`,
               );
@@ -770,6 +771,7 @@ export class JobsService implements OnApplicationBootstrap, OnModuleDestroy {
             const ms = Date.now() - t0;
             job.preview_url = p.url;
             job.preview_url_expires_at = p.expiresAtIso;
+            job.state = next; // 在 preview_url 写入之后才设置状态，避免轮询读到 state=preview_ready 但无 preview_url
             this.logger.log(
               `[PIPELINE][job_id=${job.job_id}] PREVIEW_READY: ` +
                 `preview_url=${p.url.slice(0, 80)}..., ` +

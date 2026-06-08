@@ -10,10 +10,11 @@ import android.os.RemoteCallbackList;
 import android.util.Log;
 
 import com.fancyprint.edge.IPrintJobCallback;
-import com.fancyprint.edge.print.UsbPrintConnector.UsbPermissionCallback;
 import com.fancyprint.edge.config.AppConfig;
 import com.fancyprint.edge.storage.JobDatabase;
 import com.fancyprint.edge.storage.PrintJobEntity;
+
+import com.lingmoyun.instruction.cpcl.CpclBuilder;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -21,6 +22,7 @@ import org.json.JSONObject;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -53,8 +55,6 @@ public class PrintJobManager {
     private final java.util.Map<String, Integer> retryCounts = new java.util.concurrent.ConcurrentHashMap<>();
 
     private final UsbPrintConnector usbPrintConnector;
-    private final BlePrintConnector blePrintConnector;
-    private final Object connectorLock = new Object();
 
     private AppConfig appConfig;
 
@@ -65,7 +65,6 @@ public class PrintJobManager {
         this.callbacks = callbacks;
         this.executor = Executors.newSingleThreadExecutor();
         this.usbPrintConnector = new UsbPrintConnector(context);
-        this.blePrintConnector = new BlePrintConnector(context);
         this.appConfig = AppConfig.load(context);
     }
 
@@ -267,6 +266,8 @@ public class PrintJobManager {
         }
     }
 
+    private static final int PRINTER_DPI = 203;
+
     private boolean executePrintInternal(PrintJobEntity job) {
         Bitmap bitmap = downloadImage(job.imageUrl);
         if (bitmap == null) {
@@ -276,101 +277,95 @@ public class PrintJobManager {
 
         bitmap = adjustBitmapForMode(bitmap, job.mode);
 
+        byte[] cpclData = bitmapToCpcl(bitmap);
+        bitmap.recycle();
+
+        if (cpclData == null || cpclData.length == 0) {
+            Log.e(TAG, "CPCL conversion failed");
+            return false;
+        }
+
         android.hardware.usb.UsbDevice printer = usbPrintConnector.findPrinter();
         if (printer == null) {
-            Log.w(TAG, "No USB printer found, trying BLE...");
-            return tryBlePrint(bitmap, job);
+            Log.e(TAG, "No USB printer found");
+            cpclData = null;
+            return false;
         }
 
         if (!usbPrintConnector.hasPermission(printer)) {
-            Log.w(TAG, "USB permission not granted for printer: " + printer.getProductName());
-            // 启动 UsbPermissionActivity 请求权限（透明 Activity，无 UI）
+            Log.w(TAG, "USB permission not granted for: " + printer.getProductName());
             Intent permIntent = new Intent(context, UsbPermissionActivity.class);
             permIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             permIntent.putExtra(UsbManager.EXTRA_DEVICE, printer);
             context.startActivity(permIntent);
-            bitmap.recycle();
+            cpclData = null;
             return false;
         }
 
-        if (!usbPrintConnector.isConnected()) {
-            boolean connected = usbPrintConnector.connect(printer);
-            if (!connected) {
-                Log.e(TAG, "Failed to connect to printer: " + printer.getProductName());
-                bitmap.recycle();
-                return false;
-            }
-        }
-
-        byte[] imageData = bitmapToPngBytes(bitmap);
-        bitmap.recycle();
-
-        if (imageData == null || imageData.length == 0) {
-            Log.e(TAG, "Bitmap conversion failed");
-            usbPrintConnector.disconnect();
+        if (!usbPrintConnector.connect(printer)) {
+            Log.e(TAG, "Failed to connect USB printer");
+            cpclData = null;
             return false;
         }
 
-        Log.i(TAG, "Sending " + imageData.length + " bytes to USB printer");
-        boolean printed = usbPrintConnector.print(imageData);
+        Log.i(TAG, "Sending " + cpclData.length + " CPCL bytes to USB printer");
+        boolean printed = usbPrintConnector.print(cpclData);
         usbPrintConnector.disconnect();
+        cpclData = null;
 
         if (printed) {
-            Log.i(TAG, "Print job completed: " + job.jobId);
-        } else {
-            Log.e(TAG, "Print failed: " + job.jobId);
+            Log.i(TAG, "Print job completed via USB: " + job.jobId);
         }
-
         return printed;
     }
 
-    private boolean tryBlePrint(Bitmap bitmap, PrintJobEntity job) {
-        java.util.List<android.bluetooth.BluetoothDevice> printers = blePrintConnector.getPairedPrinters();
-        if (printers == null || printers.isEmpty()) {
-            Log.w(TAG, "No BLE printer found either");
-            bitmap.recycle();
-            return false;
+    private byte[] bitmapToCpcl(Bitmap bitmap) {
+        try {
+            int paperWidthMm = appConfig != null ? appConfig.getPaperWidthMm() : 76;
+            int paperHeightMm = appConfig != null ? appConfig.getPaperHeightMm() : 127;
+            int targetWidth = BitmapUtils.mm2px(paperWidthMm, PRINTER_DPI);
+            int targetHeight = BitmapUtils.mm2px(paperHeightMm, PRINTER_DPI);
+            Bitmap scaled = BitmapUtils.scale(bitmap, targetWidth, targetHeight);
+
+            Bitmap dithered = BitmapUtils.floydSteinberg(scaled);
+            scaled.recycle();
+
+            Log.d(TAG, "bitmapToCpcl: scaled=" + dithered.getWidth() + "x" + dithered.getHeight());
+
+            byte[] cpcl = CpclBuilder.createArea(0, PRINTER_DPI, dithered.getHeight(), 1)
+                    .pageWidth(PRINTER_DPI == 203 ? 1728 : 2592)
+                    .imageGG(0, 0, dithered)
+                    .formPrint()
+                    .cut(0)
+                    .build();
+
+            dithered.recycle();
+            Log.d(TAG, "bitmapToCpcl: CPCL=" + cpcl.length + " bytes");
+            return cpcl;
+        } catch (Exception e) {
+            Log.e(TAG, "bitmapToCpcl error", e);
+            return null;
         }
-
-        android.bluetooth.BluetoothDevice blePrinter = printers.get(0);
-        Log.i(TAG, "Trying BLE printer: " + blePrinter.getName());
-
-        if (!blePrintConnector.connect(blePrinter)) {
-            Log.e(TAG, "Failed to connect to BLE printer: " + blePrinter.getName());
-            bitmap.recycle();
-            return false;
-        }
-
-        byte[] imageData = bitmapToPngBytes(bitmap);
-        bitmap.recycle();
-
-        if (imageData == null || imageData.length == 0) {
-            Log.e(TAG, "Bitmap conversion failed for BLE");
-            blePrintConnector.disconnect();
-            return false;
-        }
-
-        Log.i(TAG, "Sending " + imageData.length + " bytes to BLE printer");
-        boolean printed = blePrintConnector.print(imageData);
-        blePrintConnector.disconnect();
-
-        if (printed) {
-            Log.i(TAG, "Print job completed via BLE: " + job.jobId);
-        } else {
-            Log.e(TAG, "Print failed via BLE: " + job.jobId);
-        }
-
-        return printed;
     }
 
     /**
-     * 下载图片并转换为 Bitmap
+     * 下载图片并转换为 Bitmap（支持 http://, https://, file:// URI）
      */
     private Bitmap downloadImage(String imageUrl) {
         if (imageUrl == null || imageUrl.isEmpty()) {
             return null;
         }
         try {
+            // file:// 直接解码本地文件（用于"直接打印"从缓存读取）
+            if (imageUrl.startsWith("file://")) {
+                String filePath = imageUrl.substring(7);
+                Bitmap bitmap = BitmapFactory.decodeFile(filePath);
+                if (bitmap == null) {
+                    Log.e(TAG, "Failed to decode local file: " + filePath);
+                }
+                return bitmap;
+            }
+            // http/https 走网络下载
             URL url = new URL(imageUrl);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setConnectTimeout(15000);
@@ -471,9 +466,6 @@ public class PrintJobManager {
         cancelOfflineRetry();
         if (usbPrintConnector != null) {
             usbPrintConnector.disconnect();
-        }
-        if (blePrintConnector != null) {
-            blePrintConnector.disconnect();
         }
         Log.i(TAG, "PrintJobManager released");
     }

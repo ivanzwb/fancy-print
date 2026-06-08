@@ -88,6 +88,12 @@ dependencies {
     // Sherpa-ONNX — 本地离线语音识别（ASR）
     implementation(":sherpa-onnx@aar")
 
+    // LMY CPCL SDK — 图片转CPCL打印机指令（排除 sherpa-onnx，避免与 :sherpa-onnx 模块冲突）
+    implementation(fileTree("libs") { exclude("sherpa-onnx*") })
+
+    // USB Serial — 增强USB打印机支持（usb-serial-for-android）
+    implementation("com.github.mik3y:usb-serial-for-android:3.5.1")
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.mockito:mockito-core:5.10.0")

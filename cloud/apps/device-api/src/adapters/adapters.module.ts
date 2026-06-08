@@ -10,6 +10,7 @@ import { IflytekIatAsrAdapter } from './vendors/iflytek-iat-asr.adapter';
 import { StubAsrAdapter } from './vendors/stub-asr.adapter';
 import { StubImageGenAdapter } from './vendors/stub-image-gen.adapter';
 import { TongyiWanxiangImageGenAdapter } from './vendors/tongyi-wanxiang-image-gen.adapter';
+import { QwenImageSyncAdapter } from './vendors/qwen-image-sync.adapter';
 import {
   createAsrAdapter,
   createImageGenAdapter,
@@ -26,6 +27,7 @@ import { ASR_ADAPTER, IMAGE_GEN_ADAPTER } from './vendors/vendor-adapters.tokens
     BaiduAsrAdapter,
     BaiduWenxinImageGenAdapter,
     TongyiWanxiangImageGenAdapter,
+    QwenImageSyncAdapter,
     {
       provide: ASR_ADAPTER,
       useFactory: createAsrAdapter,
@@ -34,7 +36,7 @@ import { ASR_ADAPTER, IMAGE_GEN_ADAPTER } from './vendors/vendor-adapters.tokens
     {
       provide: IMAGE_GEN_ADAPTER,
       useFactory: createImageGenAdapter,
-      inject: [TongyiWanxiangImageGenAdapter, BaiduWenxinImageGenAdapter, StubImageGenAdapter],
+      inject: [TongyiWanxiangImageGenAdapter, QwenImageSyncAdapter, BaiduWenxinImageGenAdapter, StubImageGenAdapter],
     },
     S3PreviewService,
     S3AudioStagingService,

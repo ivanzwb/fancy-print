@@ -16,6 +16,8 @@
   "print": {
     "usb_mode": "png",
     "ble_mode": "png",
-    "timeout_sec": 120
+    "timeout_sec": 120,
+    "paper_width_mm": 76,
+    "paper_height_mm": 127
   }
 }

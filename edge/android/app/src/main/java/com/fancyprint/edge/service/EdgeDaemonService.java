@@ -311,6 +311,7 @@ public class EdgeDaemonService extends Service {
                 @Override
                 public void onError(int code, String message) {
                     Log.w(TAG, "submitTextToCloud: error " + code + " " + message);
+                    try { callback.onError(code, message); } catch (Exception ignored) {}
                 }
             });
         });

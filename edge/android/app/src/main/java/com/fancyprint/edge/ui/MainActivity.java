@@ -191,11 +191,13 @@ public class MainActivity extends AppCompatActivity {
         pttButton.setOnTouchListener((v, event) -> {
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
+                    v.setPressed(true);
                     startPttRecording();
                     pttDownTime = System.currentTimeMillis();
                     return true;
                 case MotionEvent.ACTION_UP:
                 case MotionEvent.ACTION_CANCEL:
+                    v.setPressed(false);
                     long pressDuration = System.currentTimeMillis() - pttDownTime;
                     if (pressDuration < MIN_PTT_MS) {
                         // 按键太短，延迟到最矮时长再停止
@@ -239,12 +241,43 @@ public class MainActivity extends AppCompatActivity {
             startActivity(confirmIntent);
         });
 
-        // 预览界面 — 打印按钮
+        // 预览界面 — 打印按钮（直接打印：保存 bitmap → 提交打印任务）
         printButton.setOnClickListener(v -> {
-            if (currentPreviewUrl != null && !currentPreviewUrl.isEmpty()) {
-                // TODO: 将 base64 图片发送到打印队列
-                Toast.makeText(this, "打印功能开发中", Toast.LENGTH_SHORT).show();
+            if (currentPreviewUrl == null || currentPreviewUrl.isEmpty()) return;
+            printButton.setEnabled(false);
+            printButton.setText("打印中...");
+            try {
+                // 将 base64 解码并保存到临时文件
+                String base64 = currentPreviewUrl;
+                if (base64.startsWith("data:image")) {
+                    base64 = base64.substring(base64.indexOf(",") + 1);
+                }
+                byte[] imageBytes = Base64.decode(base64, Base64.DEFAULT);
+                java.io.File cacheDir = getCacheDir();
+                java.io.File tempFile = new java.io.File(cacheDir, "print_" + System.currentTimeMillis() + ".png");
+                java.io.FileOutputStream fos = new java.io.FileOutputStream(tempFile);
+                fos.write(imageBytes);
+                fos.close();
+                String fileUrl = "file://" + tempFile.getAbsolutePath();
+                String jobId = "direct_" + System.currentTimeMillis();
+
+                // 通过 AIDL 提交并确认打印
+                if (bound && daemonService != null) {
+                    daemonService.submitPrintJob(jobId, fileUrl, "color", "coloring", 120);
+                    daemonService.confirmPrintJob(jobId);
+                    Log.i(TAG, "Direct print submitted: " + fileUrl);
+                    statusText.setText("打印任务已提交");
+                    Toast.makeText(this, "打印任务已提交", Toast.LENGTH_SHORT).show();
+                } else {
+                    statusText.setText("服务未连接");
+                    Toast.makeText(this, "服务未连接", Toast.LENGTH_SHORT).show();
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Direct print error", e);
+                Toast.makeText(this, "打印失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
             }
+            printButton.setEnabled(true);
+            printButton.setText("打印");
         });
 
         // 预览界面 — 取消，回到语音输入
@@ -426,6 +459,7 @@ public class MainActivity extends AppCompatActivity {
     // ============================================================
 
     private static final int REQUEST_POST_NOTIFICATIONS = 1001;
+    private static final int REQUEST_RECORD_AUDIO = 1002;
 
     /**
      * 请求 POST_NOTIFICATIONS 权限（Android 13+ / API 33+）
@@ -480,6 +514,16 @@ public class MainActivity extends AppCompatActivity {
             } else {
                 Log.w(TAG, "POST_NOTIFICATIONS denied — 前台服务通知可能不显示");
                 // kiosk 设备上无法拒绝 — 可通过 DPC 强制授权
+            }
+        } else if (requestCode == REQUEST_RECORD_AUDIO) {
+            if (grantResults.length > 0
+                    && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Log.i(TAG, "RECORD_AUDIO granted, restarting recording");
+                statusText.setText("按住说话");
+                // 权限刚授予，用户需要重新按住 PTT 按键
+            } else {
+                Log.w(TAG, "RECORD_AUDIO denied");
+                statusText.setText("麦克风权限被拒绝");
             }
         }
     }
@@ -545,6 +589,14 @@ public class MainActivity extends AppCompatActivity {
 
     private void startPttRecording() {
         if (!bound || daemonService == null) return;
+        // Android 14 需要运行时请求 RECORD_AUDIO
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) {
+            statusText.setText("需要麦克风权限");
+            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},
+                    REQUEST_RECORD_AUDIO);
+            return;
+        }
         try {
             // 使用 PCM 录制（16kHz 16bit mono），供本地 Sherpa-ONNX 离线 ASR
             String pcmPath = daemonService.startPcmRecording();
@@ -552,9 +604,13 @@ public class MainActivity extends AppCompatActivity {
                 isRecording = true;
                 pttButton.setColorFilter(0xFFFF4444, android.graphics.PorterDuff.Mode.SRC_IN);
                 statusText.setText("录音中...");
+            } else {
+                Log.w(TAG, "startPcmRecording returned empty path");
+                statusText.setText("录音启动失败");
             }
         } catch (RemoteException e) {
             Log.e(TAG, "startPcmRecording error", e);
+            statusText.setText("录音异常");
         }
     }
 
@@ -587,29 +643,66 @@ public class MainActivity extends AppCompatActivity {
                         public void onImageReady(String previewUrl) {
                             runOnUiThread(() -> {
                                 currentPreviewUrl = previewUrl;
-                                try {
-                                    String base64 = previewUrl;
-                                    if (previewUrl.startsWith("data:image")) {
-                                        base64 = previewUrl.substring(previewUrl.indexOf(",") + 1);
-                                    }
-                                    byte[] imageBytes = Base64.decode(base64, Base64.DEFAULT);
-                                    Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
-                                    if (bitmap != null) {
-                                        Log.i(TAG, "onImageReady: showing preview, then setting bitmap");
-                                        previewTranscript.setText(currentTranscript != null ? currentTranscript : "");
-                                        // 先显示容器，等布局完成后再设图——否则 ImageView 高度为 0，fitCenter 会把图缩成一条线
-                                        showPreviewMode();
-                                        final Bitmap bm = bitmap;
-                                        previewImage.post(() -> previewImage.setImageBitmap(bm));
-                                        Log.i(TAG, "onImageReady: preview mode shown, bitmap queued");
-                                    } else {
-                                        Log.e(TAG, "onImageReady: bitmap is null, showing voice");
+                                
+                                // 处理 HTTPS URL vs data:image vs 纯 base64
+                                if (previewUrl.startsWith("http://") || previewUrl.startsWith("https://")) {
+                                    // HTTPS URL: 需要下载图片
+                                    Log.i(TAG, "onImageReady: downloading from URL: " + previewUrl);
+                                    new Thread(() -> {
+                                        try {
+                                            java.net.URL url = new java.net.URL(previewUrl);
+                                            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+                                            conn.setConnectTimeout(15000);
+                                            conn.setReadTimeout(30000);
+                                            java.io.InputStream is = conn.getInputStream();
+                                            Bitmap bitmap = BitmapFactory.decodeStream(is);
+                                            is.close();
+                                            conn.disconnect();
+                                            
+                                            runOnUiThread(() -> {
+                                                if (bitmap != null) {
+                                                    Log.i(TAG, "onImageReady: downloaded bitmap " + bitmap.getWidth() + "x" + bitmap.getHeight());
+                                                    previewTranscript.setText(currentTranscript != null ? currentTranscript : "");
+                                                    showPreviewMode();
+                                                    previewImage.setImageBitmap(bitmap);
+                                                } else {
+                                                    Log.e(TAG, "onImageReady: downloaded bitmap is null");
+                                                    statusText.setText("图片下载失败");
+                                                    showVoiceMode();
+                                                }
+                                            });
+                                        } catch (Exception e) {
+                                            Log.e(TAG, "onImageReady: download error", e);
+                                            runOnUiThread(() -> {
+                                                statusText.setText("图片下载失败: " + e.getMessage());
+                                                showVoiceMode();
+                                            });
+                                        }
+                                    }).start();
+                                } else {
+                                    // data:image 或纯 base64
+                                    try {
+                                        String base64 = previewUrl;
+                                        if (previewUrl.startsWith("data:image")) {
+                                            base64 = previewUrl.substring(previewUrl.indexOf(",") + 1);
+                                        }
+                                        byte[] imageBytes = Base64.decode(base64, Base64.DEFAULT);
+                                        Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
+                                        if (bitmap != null) {
+                                            Log.i(TAG, "onImageReady: base64 bitmap " + bitmap.getWidth() + "x" + bitmap.getHeight());
+                                            previewTranscript.setText(currentTranscript != null ? currentTranscript : "");
+                                            showPreviewMode();
+                                            previewImage.setImageBitmap(bitmap);
+                                        } else {
+                                            Log.e(TAG, "onImageReady: base64 bitmap is null");
+                                            statusText.setText("图片解析失败");
+                                            showVoiceMode();
+                                        }
+                                    } catch (Exception e) {
+                                        Log.e(TAG, "onImageReady error", e);
+                                        statusText.setText("图片解析失败");
                                         showVoiceMode();
                                     }
-                                } catch (Exception e) {
-                                    Log.e(TAG, "onImageReady error", e);
-                                    statusText.setText("图片解析失败");
-                                    showVoiceMode();
                                 }
                             });
                         }

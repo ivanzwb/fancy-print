@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 
@@ -37,9 +38,13 @@ public class UsbPermissionActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // 透明主题，无 UI
 
-        registerReceiver(permissionReceiver, new IntentFilter(ACTION_USB_PERMISSION));
+        IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(permissionReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(permissionReceiver, filter);
+        }
 
         UsbDevice device = getIntent().getParcelableExtra(UsbManager.EXTRA_DEVICE);
         if (device == null) {

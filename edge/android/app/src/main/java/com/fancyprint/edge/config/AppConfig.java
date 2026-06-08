@@ -23,6 +23,8 @@ public class AppConfig {
     private int httpsTimeoutConnect;
     private int httpsTimeoutRead;
     private int printTimeoutSec;
+    private int paperWidthMm = 76;
+    private int paperHeightMm = 127;
 
     private AppConfig() {}
 
@@ -56,6 +58,8 @@ public class AppConfig {
             JSONObject print = root.optJSONObject("print");
             if (print != null) {
                 config.printTimeoutSec = print.optInt("timeout_sec", 120);
+                config.paperWidthMm = print.optInt("paper_width_mm", 76);
+                config.paperHeightMm = print.optInt("paper_height_mm", 127);
             }
 
             Log.i(TAG, "Config loaded: mqtt=" + config.mqttBrokerUrl
@@ -77,4 +81,6 @@ public class AppConfig {
     public int getHttpsTimeoutConnect() { return httpsTimeoutConnect; }
     public int getHttpsTimeoutRead() { return httpsTimeoutRead; }
     public int getPrintTimeoutSec() { return printTimeoutSec; }
+    public int getPaperWidthMm() { return paperWidthMm; }
+    public int getPaperHeightMm() { return paperHeightMm; }
 }

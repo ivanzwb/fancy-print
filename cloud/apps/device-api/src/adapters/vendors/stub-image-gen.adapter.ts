@@ -4,9 +4,11 @@ import type { ImageGenAdapter, ImageGenAdapterInput } from './image-gen-adapter.
 @Injectable()
 export class StubImageGenAdapter implements ImageGenAdapter {
   async generate(_input: ImageGenAdapterInput): Promise<{ imageBase64: string } | null> {
-    // Return a tiny valid PNG as stub image (1x1 pixel blue dot)
-    const stubPngBase64 =
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
-    return { imageBase64: stubPngBase64 };
+    throw new Error(
+      'IMAGE_GEN_STUB: 未配置图片生成服务。请设置环境变量：\n' +
+      '  - DASHSCOPE_API_KEY=your-key (通义万相)\n' +
+      '  - IMAGE_GEN_DRIVER=auto 或 tongyi\n' +
+      '详见 cloud/apps/device-api/README.md'
+    );
   }
 }
