@@ -372,6 +372,11 @@ public class EdgeDaemonService extends Service {
             audioController.stopAudio();
         }
 
+        @Override
+        public void speak(String text) {
+            audioController.speak(text);
+        }
+
         // ---- PCM 录制（本地离线 ASR） ----
 
         @Override

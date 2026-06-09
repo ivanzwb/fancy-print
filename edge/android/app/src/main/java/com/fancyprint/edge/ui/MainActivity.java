@@ -322,6 +322,24 @@ public class MainActivity extends AppCompatActivity {
         FancyPrintApplication.selectedUiContentMode = uiMode;
         updatePttHintForMode(uiMode);
         showWorkspaceVoice();
+        speakModeHint(uiMode);
+    }
+    
+    private void speakModeHint(String uiMode) {
+        if (!bound || daemonService == null) return;
+        try {
+            if (ContentModes.UI_AI_CREATE.equals(uiMode)) {
+                daemonService.speak("变彩画模式，按住说话描述画面");
+            } else if (ContentModes.UI_COLORING.equals(uiMode)) {
+                daemonService.speak("变线稿模式，按住说话描述线稿");
+            } else if (ContentModes.UI_TEMPLATE.equals(uiMode)) {
+                daemonService.speak("安静书模式，按住说话描述内容");
+            } else if (ContentModes.UI_MY_WORKS.equals(uiMode)) {
+                daemonService.speak("小相册模式");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "speakModeHint error", e);
+        }
     }
 
     private void updatePttHintForMode(String uiMode) {
@@ -921,6 +939,10 @@ public class MainActivity extends AppCompatActivity {
         }
         
         if (containsAny(lower, "返回", "主页", "首页", "主界面", "回到主页")) {
+            Toast.makeText(this, "🏠 返回主页", Toast.LENGTH_SHORT).show();
+            if (bound && daemonService != null) {
+                try { daemonService.speak("已返回主页"); } catch (Exception ignored) {}
+            }
             showLauncher();
             return true;
         }

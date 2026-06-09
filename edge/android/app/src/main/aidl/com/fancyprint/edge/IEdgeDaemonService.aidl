@@ -75,6 +75,12 @@ interface IEdgeDaemonService {
     void playAudio(String filePath, float volume);
 
     /**
+     * TTS 语音播报
+     * @param text 要播报的文字
+     */
+    void speak(String text);
+
+    /**
      * 停止播放
      */
     void stopAudio();
