@@ -13,6 +13,8 @@ import android.os.Build;
 import android.speech.tts.TextToSpeech;
 import android.util.Log;
 
+import com.fancyprint.edge.R;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -143,15 +145,67 @@ public class AudioController {
     // ============================================================
 
     /**
-     * TTS 语音播报
+     * TTS 语音播报（优先使用预录制音频）
      */
     public void speak(String text) {
-        if (ttsReady && textToSpeech != null) {
+        int resId = getTextToAudioResource(text);
+        if (resId != 0) {
+            playRawResource(resId);
+        } else if (ttsReady && textToSpeech != null) {
             requestAudioFocus();
             textToSpeech.speak(text, TextToSpeech.QUEUE_FLUSH, null, null);
             Log.i(TAG, "TTS speak: " + text);
         } else {
             Log.w(TAG, "TTS not ready, cannot speak: " + text);
+        }
+    }
+
+    /**
+     * 根据文本映射到预录制音频资源
+     */
+    private int getTextToAudioResource(String text) {
+        if (text == null) return 0;
+        
+        if (text.contains("变彩画")) {
+            return R.raw.mode_ai_create;
+        } else if (text.contains("变线稿")) {
+            return R.raw.mode_coloring;
+        } else if (text.contains("安静书")) {
+            return R.raw.mode_template;
+        } else if (text.contains("相册")) {
+            return R.raw.mode_album;
+        } else if (text.contains("返回主页") || text.contains("已返回")) {
+            return R.raw.back_home;
+        }
+        return 0;
+    }
+
+    /**
+     * 播放 res/raw 资源音频
+     */
+    public void playRawResource(int rawResId) {
+        stopAudio();
+        requestAudioFocus();
+
+        try {
+            mediaPlayer = MediaPlayer.create(context, rawResId);
+            if (mediaPlayer != null) {
+                mediaPlayer.setVolume(1.0f, 1.0f);
+                mediaPlayer.setOnCompletionListener(mp -> {
+                    mp.release();
+                    mediaPlayer = null;
+                });
+                mediaPlayer.setOnErrorListener((mp, what, extra) -> {
+                    Log.e(TAG, "MediaPlayer error: " + what + " " + extra);
+                    mp.release();
+                    mediaPlayer = null;
+                    return true;
+                });
+                mediaPlayer.start();
+                Log.i(TAG, "Playing raw resource: " + rawResId);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to play raw resource", e);
         }
     }
 
