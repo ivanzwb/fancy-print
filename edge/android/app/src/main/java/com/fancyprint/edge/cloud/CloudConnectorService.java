@@ -4,6 +4,8 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Log;
 
+import com.fancyprint.edge.ContentModes;
+import com.fancyprint.edge.FancyPrintApplication;
 import com.fancyprint.edge.config.AppConfig;
 
 import java.util.UUID;
@@ -215,7 +217,7 @@ public class CloudConnectorService {
      */
     public void createImageJob(String transcript, String accessToken,
                                ApiClient.ApiCallback callback) {
-        apiClient.createImageFromText(transcript, callback);
+        createImageFromText(transcript, callback);
     }
 
     /**
@@ -229,6 +231,11 @@ public class CloudConnectorService {
      * 设备认证 + 文字生图全流程（auth → create job → submit text → poll preview）
      */
     public void createImageFromText(String transcript, ApiClient.ApiCallback callback) {
-        apiClient.createImageFromText(transcript, callback);
+        String cloud = ContentModes.uiModeToCloudContentMode(FancyPrintApplication.selectedUiContentMode);
+        createImageFromText(transcript, cloud, callback);
+    }
+
+    public void createImageFromText(String transcript, String cloudContentMode, ApiClient.ApiCallback callback) {
+        apiClient.createImageFromText(transcript, cloudContentMode, callback);
     }
 }

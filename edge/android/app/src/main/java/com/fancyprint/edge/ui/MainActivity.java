@@ -32,6 +32,7 @@ import android.util.Base64;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.fancyprint.edge.ContentModes;
 import com.fancyprint.edge.FancyPrintApplication;
 import com.fancyprint.edge.IAsrCallback;
 import com.fancyprint.edge.IEdgeDaemonService;
@@ -73,9 +74,14 @@ public class MainActivity extends AppCompatActivity {
     private String currentPreviewUrl; // 当前预览图片的 base64 URL
     private String currentTranscript; // 当前识别文字
     private View bottomBar;
+    private View launcherContainer;
+    private View launcherSettingsBtn;
+    private Button backToLauncher;
+    private View statusBar;
     private boolean isRecording = false;
     private long pttDownTime = 0;
-    private static final int MIN_PTT_MS = 2000; // 最短 PTT 按键 2 秒（Baidu ASR 需要至少 1 秒）
+    private static final int MIN_PTT_MS = 2000;
+    private boolean isVoiceCommand = false; // 最短 PTT 按键 2 秒（Baidu ASR 需要至少 1 秒）
 
     private final ServiceConnection connection = new ServiceConnection() {
         @Override
@@ -173,6 +179,10 @@ public class MainActivity extends AppCompatActivity {
         cancelButton = findViewById(R.id.cancel_button);
         cancelGenButton = findViewById(R.id.cancel_gen_button);
         bottomBar = findViewById(R.id.bottom_bar);
+        launcherContainer = findViewById(R.id.launcher_container);
+        launcherSettingsBtn = findViewById(R.id.launcher_settings_btn);
+        backToLauncher = findViewById(R.id.back_to_launcher);
+        statusBar = findViewById(R.id.status_bar);
 
         // 启动并绑定 EdgeDaemonService（Android 14+ 必须先 startForegroundService）
         Intent intent = new Intent(this, com.fancyprint.edge.service.EdgeDaemonService.class);
@@ -212,12 +222,11 @@ public class MainActivity extends AppCompatActivity {
             return false;
         });
 
-        // 设置按钮（需家长 PIN）
-        findViewById(R.id.settings_button).setOnClickListener(v -> {
-            Intent settingsIntent = new Intent(MainActivity.this, ParentLockActivity.class);
-            settingsIntent.putExtra("target", "settings");
-            startActivity(settingsIntent);
-        });
+        // 设置按钮（需家长 PIN）— 底栏与启动器右下角共用
+        findViewById(R.id.settings_button).setOnClickListener(v -> openParentLockForSettings());
+        launcherSettingsBtn.setOnClickListener(v -> openParentLockForSettings());
+        backToLauncher.setOnClickListener(v -> showLauncher());
+        wireLauncherCards();
 
         // 打印确认
         findViewById(R.id.print_confirm_button).setOnClickListener(v -> {
@@ -263,7 +272,7 @@ public class MainActivity extends AppCompatActivity {
 
                 // 通过 AIDL 提交并确认打印
                 if (bound && daemonService != null) {
-                    daemonService.submitPrintJob(jobId, fileUrl, "color", "coloring", 120);
+                    daemonService.submitPrintJob(jobId, fileUrl, "color", FancyPrintApplication.selectedUiContentMode, 120);
                     daemonService.confirmPrintJob(jobId);
                     Log.i(TAG, "Direct print submitted: " + fileUrl);
                     statusText.setText("打印任务已提交");
@@ -292,6 +301,72 @@ public class MainActivity extends AppCompatActivity {
         if (fromBoot) {
             Log.i(TAG, "Started from boot receiver");
         }
+
+        showLauncher();
+    }
+
+    private void openParentLockForSettings() {
+        Intent settingsIntent = new Intent(MainActivity.this, ParentLockActivity.class);
+        settingsIntent.putExtra("target", "settings");
+        startActivity(settingsIntent);
+    }
+
+    private void wireLauncherCards() {
+        findViewById(R.id.launcher_card_paint).setOnClickListener(v -> enterWorkspace(ContentModes.UI_AI_CREATE));
+        findViewById(R.id.launcher_card_lineart).setOnClickListener(v -> enterWorkspace(ContentModes.UI_COLORING));
+        findViewById(R.id.launcher_card_quiet).setOnClickListener(v -> enterWorkspace(ContentModes.UI_TEMPLATE));
+        findViewById(R.id.launcher_card_album).setOnClickListener(v -> enterWorkspace(ContentModes.UI_MY_WORKS));
+    }
+
+    private void enterWorkspace(String uiMode) {
+        FancyPrintApplication.selectedUiContentMode = uiMode;
+        updatePttHintForMode(uiMode);
+        showWorkspaceVoice();
+    }
+
+    private void updatePttHintForMode(String uiMode) {
+        TextView hint = findViewById(R.id.hint_text);
+        if (hint == null) return;
+        if (ContentModes.UI_AI_CREATE.equals(uiMode)) {
+            hint.setText("变彩画：按住说话，描述想要的画面");
+        } else if (ContentModes.UI_COLORING.equals(uiMode)) {
+            hint.setText("变线稿：按住说话，描述线稿内容");
+        } else if (ContentModes.UI_TEMPLATE.equals(uiMode)) {
+            hint.setText("安静书：按住说话，描述想要的内容");
+        } else if (ContentModes.UI_MY_WORKS.equals(uiMode)) {
+            hint.setText("小相册：按住说话，描述照片或回忆");
+        } else {
+            hint.setText(R.string.hint_ptt_default);
+        }
+    }
+
+    /** 儿童主界面 2×2 启动器 */
+    private void showLauncher() {
+        resetWorkbenchUiState();
+        launcherContainer.setVisibility(View.VISIBLE);
+        statusBar.setVisibility(View.GONE);
+        bottomBar.setVisibility(View.GONE);
+    }
+
+    private void resetWorkbenchUiState() {
+        voiceContainer.setVisibility(View.GONE);
+        generatingContainer.setVisibility(View.GONE);
+        previewContainer.setVisibility(View.GONE);
+        currentPreviewUrl = null;
+        currentTranscript = null;
+        statusText.setText("");
+        pttButton.clearColorFilter();
+    }
+
+    /** 进入 PTT 工作区（保留顶栏与底栏） */
+    private void showWorkspaceVoice() {
+        launcherContainer.setVisibility(View.GONE);
+        statusBar.setVisibility(View.VISIBLE);
+        backToLauncher.setVisibility(View.VISIBLE);
+        voiceContainer.setVisibility(View.VISIBLE);
+        bottomBar.setVisibility(View.VISIBLE);
+        generatingContainer.setVisibility(View.GONE);
+        previewContainer.setVisibility(View.GONE);
     }
 
     @Override
@@ -635,6 +710,12 @@ public class MainActivity extends AppCompatActivity {
                             runOnUiThread(() -> {
                                 pttButton.clearColorFilter();
                                 currentTranscript = transcription;
+                                
+                                if (handleVoiceCommand(transcription)) {
+                                    isVoiceCommand = true;
+                                    return;
+                                }
+                                isVoiceCommand = false;
                                 showGeneratingMode(transcription);
                             });
                         }
@@ -642,6 +723,10 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void onImageReady(String previewUrl) {
                             runOnUiThread(() -> {
+                                if (isVoiceCommand) {
+                                    Log.i(TAG, "onImageReady: ignored (voice command mode)");
+                                    return;
+                                }
                                 currentPreviewUrl = previewUrl;
                                 
                                 // 处理 HTTPS URL vs data:image vs 纯 base64
@@ -769,6 +854,9 @@ public class MainActivity extends AppCompatActivity {
     // ============================================================
 
     private void showVoiceMode() {
+        if (launcherContainer != null) {
+            launcherContainer.setVisibility(View.GONE);
+        }
         voiceContainer.setVisibility(View.VISIBLE);
         generatingContainer.setVisibility(View.GONE);
         previewContainer.setVisibility(View.GONE);
@@ -780,6 +868,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showGeneratingMode(String transcript) {
+        if (launcherContainer != null) {
+            launcherContainer.setVisibility(View.GONE);
+        }
         voiceContainer.setVisibility(View.GONE);
         generatingContainer.setVisibility(View.VISIBLE);
         previewContainer.setVisibility(View.GONE);
@@ -789,11 +880,60 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showPreviewMode() {
+        if (launcherContainer != null) {
+            launcherContainer.setVisibility(View.GONE);
+        }
         voiceContainer.setVisibility(View.GONE);
         generatingContainer.setVisibility(View.GONE);
         previewContainer.setVisibility(View.VISIBLE);
         previewContainer.bringToFront();
         bottomBar.setVisibility(View.GONE);
         generatingProgress.setVisibility(View.GONE);
+    }
+
+    private boolean handleVoiceCommand(String text) {
+        if (text == null || text.isEmpty()) return false;
+        
+        String lower = text.toLowerCase().trim();
+        
+        if (containsAny(lower, "变线稿", "线稿", "涂色线稿", "涂色")) {
+            Toast.makeText(this, "🎨 切换到变线稿", Toast.LENGTH_SHORT).show();
+            enterWorkspace(ContentModes.UI_COLORING);
+            return true;
+        }
+        
+        if (containsAny(lower, "变彩画", "彩画", "画画", "创作", "ai画画")) {
+            Toast.makeText(this, "🖼️ 切换到变彩画", Toast.LENGTH_SHORT).show();
+            enterWorkspace(ContentModes.UI_AI_CREATE);
+            return true;
+        }
+        
+        if (containsAny(lower, "安静书", "安静", "模板")) {
+            Toast.makeText(this, "📖 切换到安静书", Toast.LENGTH_SHORT).show();
+            enterWorkspace(ContentModes.UI_TEMPLATE);
+            return true;
+        }
+        
+        if (containsAny(lower, "相册", "小相册", "我的作品")) {
+            Toast.makeText(this, "📸 切换到小相册", Toast.LENGTH_SHORT).show();
+            enterWorkspace(ContentModes.UI_MY_WORKS);
+            return true;
+        }
+        
+        if (containsAny(lower, "返回", "主页", "首页", "主界面", "回到主页")) {
+            showLauncher();
+            return true;
+        }
+        
+        return false;
+    }
+    
+    private boolean containsAny(String text, String... keywords) {
+        for (String keyword : keywords) {
+            if (text.contains(keyword)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

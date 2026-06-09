@@ -322,6 +322,13 @@ public class ApiClient {
      * 4. 轮询 GET /v1/jobs/:id 直到 preview_ready
      */
     public void createImageFromText(String transcript, ApiCallback callback) {
+        createImageFromText(transcript, "coloring_quiet_book", callback);
+    }
+
+    /**
+     * @param cloudContentMode {@code GET /v1/policy} 返回的 {@code content_modes_allowed} 之一
+     */
+    public void createImageFromText(String transcript, String cloudContentMode, ApiCallback callback) {
         executor.execute(() -> {
             try {
                 // 1. Auth
@@ -339,7 +346,10 @@ public class ApiClient {
                 Log.i(TAG, "createImageFromText: authenticated");
 
                 // 2. Create job
-                String createBody = "{\"content_mode\":\"coloring_quiet_book\"}";
+                org.json.JSONObject createJson = new org.json.JSONObject();
+                createJson.put("content_mode", cloudContentMode != null ? cloudContentMode : "coloring_quiet_book");
+                String createBody = createJson.toString();
+                Log.i(TAG, "createImageFromText: create job body=" + createBody);
                 Request createReq = new Request.Builder()
                         .url(BASE_URL + "/jobs")
                         .post(RequestBody.create(createBody, JSON))

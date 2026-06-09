@@ -33,6 +33,12 @@ public class FancyPrintApplication extends Application {
     /** 通知权限是否已获得（Android 13+ 需运行时授权，kiosk 设备可在 DPC 设置中预授权） */
     public static boolean hasNotificationPermission = false;
 
+    /**
+     * 主界面选中的创作模式（与 Web UI ContentMode 一致），
+     * 供 {@link com.fancyprint.edge.service.EdgeDaemonService} 创建云端 job 及本地打印队列使用。
+     */
+    public static volatile String selectedUiContentMode = ContentModes.UI_AI_CREATE;
+
     @Override
     public void onCreate() {
         super.onCreate();

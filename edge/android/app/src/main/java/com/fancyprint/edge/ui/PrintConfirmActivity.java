@@ -208,12 +208,18 @@ public class PrintConfirmActivity extends AppCompatActivity {
     }
 
     private String getContentModeLabel(String cm) {
-        if (cm == null) return "涂色";
+        if (cm == null) return "变线稿";
         switch (cm) {
             case "papercut": return "剪纸";
-            case "dressup": return "换装";
-            case "coloring":
-            default: return "涂色";
+            case "dressup":
+            case "dress_up": return "换装";
+            case "coloring_quiet_book": return "安静书";
+            case "paper_craft": return "安静书";
+            case "ai_create": return "变彩画";
+            case "template": return "安静书";
+            case "my_works": return "小相册";
+            case "coloring": return "变线稿";
+            default: return cm;
         }
     }
 }

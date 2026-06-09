@@ -15,6 +15,16 @@
     <string name="notification_daemon_text">管理打印任务和连接</string>
 
     <!-- Main Kiosk -->
+    <string name="btn_home_back">← 主页</string>
+    <string name="hint_ptt_default">按住说话，松开发送</string>
+    <string name="launcher_paint_zh">变彩画</string>
+    <string name="launcher_paint_en">COLOR PAINTING</string>
+    <string name="launcher_lineart_zh">变线稿</string>
+    <string name="launcher_lineart_en">LINE ART</string>
+    <string name="launcher_quiet_zh">安静书</string>
+    <string name="launcher_quiet_en">QUIET BOOK</string>
+    <string name="launcher_album_zh">小相册</string>
+    <string name="launcher_album_en">MINI PHOTO ALBUM</string>
     <string name="btn_ptt">按住说话</string>
     <string name="btn_confirm">确认打印</string>
     <string name="btn_settings">设置</string>
