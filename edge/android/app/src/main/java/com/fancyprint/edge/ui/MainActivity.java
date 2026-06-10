@@ -5,9 +5,15 @@ import android.Manifest;
 import android.app.admin.DevicePolicyManager;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.BroadcastReceiver;
+import android.content.IntentFilter;
 import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
+import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -19,6 +25,7 @@ import android.view.MotionEvent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
@@ -29,6 +36,21 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.util.Base64;
+
+import androidx.annotation.NonNull;
+import androidx.viewpager.widget.PagerAdapter;
+import androidx.viewpager.widget.ViewPager;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.UUID;
+
+import com.fancyprint.edge.cloud.ApiClient;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -64,21 +86,57 @@ public class MainActivity extends AppCompatActivity {
     private String pendingJobId; // 云端下发的待确认任务 ID（P1-4）
 
     private TextView statusText;
-    private TextView jobCountText;
     private ImageButton pttButton;
-    private ImageView previewImage;
+    private Button pttBarButton;
+    private ViewPager previewPager;
+    private PreviewPagerAdapter previewAdapter;
+    private final List<Bitmap> previewHistory = new ArrayList<>();
+    private final List<String> previewTranscripts = new ArrayList<>();
     private View voiceContainer, generatingContainer, previewContainer;
     private TextView previewTranscript, generatingText;
-    private Button printButton, cancelButton, cancelGenButton;
+    private Button cancelGenButton;
     private ProgressBar generatingProgress;
-    private String currentPreviewUrl; // 当前预览图片的 base64 URL
-    private String currentTranscript; // 当前识别文字
-    private View bottomBar;
+    private String currentPreviewUrl;
+    private String currentTranscript;
     private View launcherContainer;
     private View launcherSettingsBtn;
-    private Button backToLauncher;
-    private View statusBar;
+    private View launcherHeader;
+    private View headerBackButton;
+    private TextView headerModeTitle;
+    private TextView headerLauncherTitle;
     private boolean isRecording = false;
+    
+    // 预览图片数据模型
+    private static class PreviewImageInfo {
+        String filePath;
+        String transcript;
+        long timestamp;
+        boolean savedToCloud;
+
+        PreviewImageInfo(String filePath, String transcript, long timestamp) {
+            this.filePath = filePath;
+            this.transcript = transcript;
+            this.timestamp = timestamp;
+            this.savedToCloud = false;
+        }
+    }
+
+    // 打印/保存按钮
+    private Button btnPrintPreview;
+    private Button btnSavePreview;
+
+    // 预览图片元数据
+    private final List<PreviewImageInfo> previewImageInfos = new ArrayList<>();
+
+    // 云端 API 客户端
+    private ApiClient apiClient;
+
+    // 启动器顶部状态栏
+    private ImageView statusWifi;
+    private ImageView statusCloud;
+    private ImageView statusBattery;
+    
+    private BroadcastReceiver batteryReceiver;
     private long pttDownTime = 0;
     private static final int MIN_PTT_MS = 2000;
     private boolean isVoiceCommand = false; // 最短 PTT 按键 2 秒（Baidu ASR 需要至少 1 秒）
@@ -119,6 +177,13 @@ public class MainActivity extends AppCompatActivity {
             runOnUiThread(() -> {
                 findViewById(R.id.connection_status).setVisibility(View.VISIBLE);
                 ((TextView) findViewById(R.id.connection_status)).setText("连接: " + status);
+                if (statusCloud != null) {
+                    if ("connected".equals(status) || "已连接".equals(status)) {
+                        statusCloud.setColorFilter(0xFF4CAF50);
+                    } else {
+                        statusCloud.setColorFilter(0xFFFF5252);
+                    }
+                }
             });
         }
 
@@ -166,23 +231,37 @@ public class MainActivity extends AppCompatActivity {
         enableFullScreenImmersive();
 
         statusText = findViewById(R.id.status_text);
-        jobCountText = findViewById(R.id.job_count);
         pttButton = findViewById(R.id.ptt_button);
-        previewImage = findViewById(R.id.preview_image);
+        pttBarButton = findViewById(R.id.ptt_bar_button);
+        previewPager = findViewById(R.id.preview_pager);
+        previewAdapter = new PreviewPagerAdapter();
+        previewPager.setAdapter(previewAdapter);
+        previewPager.addOnPageChangeListener(new ViewPager.SimpleOnPageChangeListener() {
+            @Override
+            public void onPageSelected(int position) {
+                if (position >= 0 && position < previewTranscripts.size()) {
+                    previewTranscript.setText(previewTranscripts.get(position));
+                }
+            }
+        });
         voiceContainer = findViewById(R.id.voice_container);
         generatingContainer = findViewById(R.id.generating_container);
         previewContainer = findViewById(R.id.preview_container);
         previewTranscript = findViewById(R.id.preview_transcript);
         generatingText = findViewById(R.id.generating_text);
         generatingProgress = findViewById(R.id.generating_progress);
-        printButton = findViewById(R.id.print_button);
-        cancelButton = findViewById(R.id.cancel_button);
         cancelGenButton = findViewById(R.id.cancel_gen_button);
-        bottomBar = findViewById(R.id.bottom_bar);
         launcherContainer = findViewById(R.id.launcher_container);
         launcherSettingsBtn = findViewById(R.id.launcher_settings_btn);
-        backToLauncher = findViewById(R.id.back_to_launcher);
-        statusBar = findViewById(R.id.status_bar);
+        launcherHeader = findViewById(R.id.launcher_header);
+        headerBackButton = findViewById(R.id.header_back_button);
+        headerModeTitle = findViewById(R.id.header_mode_title);
+        headerLauncherTitle = findViewById(R.id.header_launcher_title);
+        statusWifi = findViewById(R.id.status_wifi);
+        statusCloud = findViewById(R.id.status_cloud);
+        statusBattery = findViewById(R.id.status_battery);
+        btnPrintPreview = findViewById(R.id.btn_print_preview);
+        btnSavePreview = findViewById(R.id.btn_save_preview);
 
         // 启动并绑定 EdgeDaemonService（Android 14+ 必须先 startForegroundService）
         Intent intent = new Intent(this, com.fancyprint.edge.service.EdgeDaemonService.class);
@@ -197,8 +276,8 @@ public class MainActivity extends AppCompatActivity {
         // Android 13+ 请求通知权限（kiosk 场景使用 DPC 预授权或直接请求）
         requestNotificationPermission();
 
-        // PTT 按键
-        pttButton.setOnTouchListener((v, event) -> {
+        // PTT 按键（居中大麦克风 + 底部麦克风条共享相同逻辑）
+        View.OnTouchListener pttTouchListener = (v, event) -> {
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
                     v.setPressed(true);
@@ -210,7 +289,6 @@ public class MainActivity extends AppCompatActivity {
                     v.setPressed(false);
                     long pressDuration = System.currentTimeMillis() - pttDownTime;
                     if (pressDuration < MIN_PTT_MS) {
-                        // 按键太短，延迟到最矮时长再停止
                         long delay = MIN_PTT_MS - pressDuration;
                         v.postDelayed(() -> stopPttRecording(), delay);
                         Log.i(TAG, "PTT too short (" + pressDuration + "ms), delaying stop by " + delay + "ms");
@@ -220,86 +298,37 @@ public class MainActivity extends AppCompatActivity {
                     return true;
             }
             return false;
-        });
+        };
+        pttButton.setOnTouchListener(pttTouchListener);
+        if (pttBarButton != null) pttBarButton.setOnTouchListener(pttTouchListener);
 
-        // 设置按钮（需家长 PIN）— 底栏与启动器右下角共用
-        findViewById(R.id.settings_button).setOnClickListener(v -> openParentLockForSettings());
+        // 初始化云端 API 客户端（用于保存图片到服务器）
+        apiClient = new ApiClient(this);
+
+        // 保存按钮
+        if (btnSavePreview != null) {
+            btnSavePreview.setOnClickListener(v -> saveCurrentImageToCloud());
+        }
+
+        // 设置按钮（需家长 PIN）— 启动器右下角
         launcherSettingsBtn.setOnClickListener(v -> openParentLockForSettings());
-        backToLauncher.setOnClickListener(v -> showLauncher());
         wireLauncherCards();
 
-        // 打印确认
-        findViewById(R.id.print_confirm_button).setOnClickListener(v -> {
-            Intent confirmIntent = new Intent(MainActivity.this, PrintConfirmActivity.class);
-            if (pendingJobId != null) {
-                // 有云端下发的待确认任务 → 传递真实数据
-                confirmIntent.putExtra("jobId", pendingJobId);
-                if (bound && daemonService != null) {
-                    try {
-                        String jobJson = daemonService.getPrintJobStatus(pendingJobId);
-                        org.json.JSONObject json = new org.json.JSONObject(jobJson);
-                        confirmIntent.putExtra("imageUrl", json.optString("imageUrl", ""));
-                        confirmIntent.putExtra("mode", json.optString("mode", "color"));
-                        confirmIntent.putExtra("contentMode", json.optString("contentMode", "coloring"));
-                    } catch (Exception e) {
-                        Log.e(TAG, "Failed to get pending job details", e);
-                    }
-                }
-                pendingJobId = null; // 消费掉
-            }
-            startActivity(confirmIntent);
-        });
-
-        // 预览界面 — 打印按钮（直接打印：保存 bitmap → 提交打印任务）
-        printButton.setOnClickListener(v -> {
-            if (currentPreviewUrl == null || currentPreviewUrl.isEmpty()) return;
-            printButton.setEnabled(false);
-            printButton.setText("打印中...");
-            try {
-                // 将 base64 解码并保存到临时文件
-                String base64 = currentPreviewUrl;
-                if (base64.startsWith("data:image")) {
-                    base64 = base64.substring(base64.indexOf(",") + 1);
-                }
-                byte[] imageBytes = Base64.decode(base64, Base64.DEFAULT);
-                java.io.File cacheDir = getCacheDir();
-                java.io.File tempFile = new java.io.File(cacheDir, "print_" + System.currentTimeMillis() + ".png");
-                java.io.FileOutputStream fos = new java.io.FileOutputStream(tempFile);
-                fos.write(imageBytes);
-                fos.close();
-                String fileUrl = "file://" + tempFile.getAbsolutePath();
-                String jobId = "direct_" + System.currentTimeMillis();
-
-                // 通过 AIDL 提交并确认打印
-                if (bound && daemonService != null) {
-                    daemonService.submitPrintJob(jobId, fileUrl, "color", FancyPrintApplication.selectedUiContentMode, 120);
-                    daemonService.confirmPrintJob(jobId);
-                    Log.i(TAG, "Direct print submitted: " + fileUrl);
-                    statusText.setText("打印任务已提交");
-                    Toast.makeText(this, "打印任务已提交", Toast.LENGTH_SHORT).show();
-                } else {
-                    statusText.setText("服务未连接");
-                    Toast.makeText(this, "服务未连接", Toast.LENGTH_SHORT).show();
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "Direct print error", e);
-                Toast.makeText(this, "打印失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-            printButton.setEnabled(true);
-            printButton.setText("打印");
-        });
-
-        // 预览界面 — 取消，回到语音输入
-        cancelButton.setOnClickListener(v -> showVoiceMode());
-
-        // 生成界面 — 取消
-        cancelGenButton.setOnClickListener(v -> showVoiceMode());
+        // 顶部返回按钮 → 回启动器主页
+        if (headerBackButton != null) {
+            headerBackButton.setOnClickListener(v -> showLauncher());
+        }
 
         // 检查 DPC 设备管理员/Device Owner 激活状态
         checkDpcProvisioning();
 
         if (fromBoot) {
             Log.i(TAG, "Started from boot receiver");
+        }
+
+        // 生成界面 — 取消
+        if (cancelGenButton != null) {
+            cancelGenButton.setOnClickListener(v -> showVoiceMode());
         }
 
         showLauncher();
@@ -309,6 +338,49 @@ public class MainActivity extends AppCompatActivity {
         Intent settingsIntent = new Intent(MainActivity.this, ParentLockActivity.class);
         settingsIntent.putExtra("target", "settings");
         startActivity(settingsIntent);
+    }
+
+    // ============================================================
+    // 状态监控（电池、WiFi、连接状态）
+    // ============================================================
+
+    private void startStatusMonitoring() {
+        // 电池状态
+        batteryReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+                int scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+                int pct = (level >= 0 && scale > 0) ? (level * 100 / scale) : 0;
+                if (statusBattery != null) {
+                    if (pct <= 20) {
+                        statusBattery.setColorFilter(0xFFFF5252);
+                    } else if (pct <= 50) {
+                        statusBattery.setColorFilter(0xFFFFAA00);
+                    } else {
+                        statusBattery.setColorFilter(0xFF4CAF50);
+                    }
+                }
+            }
+        };
+        IntentFilter batteryFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+        registerReceiver(batteryReceiver, batteryFilter);
+
+        // WiFi 状态
+        updateWifiStatus();
+    }
+
+    private void updateWifiStatus() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm == null || statusWifi == null) return;
+        Network activeNetwork = cm.getActiveNetwork();
+        if (activeNetwork == null) {
+            statusWifi.setAlpha(0.3f);
+            return;
+        }
+        NetworkCapabilities caps = cm.getNetworkCapabilities(activeNetwork);
+        boolean hasWifi = caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI);
+        statusWifi.setAlpha(hasWifi ? 1.0f : 0.3f);
     }
 
     private void wireLauncherCards() {
@@ -321,6 +393,7 @@ public class MainActivity extends AppCompatActivity {
     private void enterWorkspace(String uiMode) {
         FancyPrintApplication.selectedUiContentMode = uiMode;
         updatePttHintForMode(uiMode);
+        updateHeaderTitle(uiMode);
         showWorkspaceVoice();
         speakModeHint(uiMode);
     }
@@ -342,28 +415,50 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void updateHeaderTitle(String uiMode) {
+        if (headerModeTitle == null) return;
+        if (headerLauncherTitle != null) headerLauncherTitle.setVisibility(View.GONE);
+        headerModeTitle.setVisibility(View.VISIBLE);
+        if (ContentModes.UI_AI_CREATE.equals(uiMode)) {
+            headerModeTitle.setText("变彩画");
+        } else if (ContentModes.UI_COLORING.equals(uiMode)) {
+            headerModeTitle.setText("变线稿");
+        } else if (ContentModes.UI_TEMPLATE.equals(uiMode)) {
+            headerModeTitle.setText("安静书");
+        } else if (ContentModes.UI_MY_WORKS.equals(uiMode)) {
+            headerModeTitle.setText("小相册");
+        } else {
+            headerModeTitle.setText("奇想印印");
+        }
+    }
+
     private void updatePttHintForMode(String uiMode) {
         TextView hint = findViewById(R.id.hint_text);
         if (hint == null) return;
         if (ContentModes.UI_AI_CREATE.equals(uiMode)) {
-            hint.setText("变彩画：按住说话，描述想要的画面");
+            hint.setText("按住说话，描述想要的画面");
         } else if (ContentModes.UI_COLORING.equals(uiMode)) {
-            hint.setText("变线稿：按住说话，描述线稿内容");
+            hint.setText("按住说话，描述线稿内容");
         } else if (ContentModes.UI_TEMPLATE.equals(uiMode)) {
-            hint.setText("安静书：按住说话，描述想要的内容");
+            hint.setText("按住说话，描述想要的内容");
         } else if (ContentModes.UI_MY_WORKS.equals(uiMode)) {
-            hint.setText("小相册：按住说话，描述照片或回忆");
+            hint.setText("按住说话，描述照片或回忆");
         } else {
             hint.setText(R.string.hint_ptt_default);
         }
     }
 
-    /** 儿童主界面 2×2 启动器 */
+    /** 儿童主界面启动器 */
     private void showLauncher() {
         resetWorkbenchUiState();
         launcherContainer.setVisibility(View.VISIBLE);
-        statusBar.setVisibility(View.GONE);
-        bottomBar.setVisibility(View.GONE);
+        launcherHeader.setVisibility(View.VISIBLE);
+        voiceContainer.setVisibility(View.GONE);
+        generatingContainer.setVisibility(View.GONE);
+        previewContainer.setVisibility(View.GONE);
+        if (headerBackButton != null) headerBackButton.setVisibility(View.GONE);
+        if (headerLauncherTitle != null) headerLauncherTitle.setVisibility(View.VISIBLE);
+        if (headerModeTitle != null) headerModeTitle.setVisibility(View.GONE);
     }
 
     private void resetWorkbenchUiState() {
@@ -374,17 +469,24 @@ public class MainActivity extends AppCompatActivity {
         currentTranscript = null;
         statusText.setText("");
         pttButton.clearColorFilter();
+        previewHistory.clear();
+        previewTranscripts.clear();
+        previewImageInfos.clear();
+        previewAdapter.notifyDataSetChanged();
     }
 
-    /** 进入 PTT 工作区（保留顶栏与底栏） */
+    /** 进入 PTT 工作区（居中麦克风 + 按住说话） */
     private void showWorkspaceVoice() {
         launcherContainer.setVisibility(View.GONE);
-        statusBar.setVisibility(View.VISIBLE);
-        backToLauncher.setVisibility(View.VISIBLE);
+        launcherHeader.setVisibility(View.VISIBLE);
         voiceContainer.setVisibility(View.VISIBLE);
-        bottomBar.setVisibility(View.VISIBLE);
         generatingContainer.setVisibility(View.GONE);
         previewContainer.setVisibility(View.GONE);
+        currentPreviewUrl = null;
+        currentTranscript = null;
+        statusText.setText("");
+        pttButton.clearColorFilter();
+        if (headerBackButton != null) headerBackButton.setVisibility(View.VISIBLE);
     }
 
     @Override
@@ -407,6 +509,9 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        if (batteryReceiver != null) {
+            try { unregisterReceiver(batteryReceiver); } catch (Exception ignored) {}
+        }
         if (bound && daemonService != null) {
             try {
                 daemonService.unregisterPrintCallback(printCallback);
@@ -765,9 +870,8 @@ public class MainActivity extends AppCompatActivity {
                                             runOnUiThread(() -> {
                                                 if (bitmap != null) {
                                                     Log.i(TAG, "onImageReady: downloaded bitmap " + bitmap.getWidth() + "x" + bitmap.getHeight());
-                                                    previewTranscript.setText(currentTranscript != null ? currentTranscript : "");
+                                                    addToPreviewHistory(bitmap, currentTranscript);
                                                     showPreviewMode();
-                                                    previewImage.setImageBitmap(bitmap);
                                                 } else {
                                                     Log.e(TAG, "onImageReady: downloaded bitmap is null");
                                                     statusText.setText("图片下载失败");
@@ -793,9 +897,8 @@ public class MainActivity extends AppCompatActivity {
                                         Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
                                         if (bitmap != null) {
                                             Log.i(TAG, "onImageReady: base64 bitmap " + bitmap.getWidth() + "x" + bitmap.getHeight());
-                                            previewTranscript.setText(currentTranscript != null ? currentTranscript : "");
+                                            addToPreviewHistory(bitmap, currentTranscript);
                                             showPreviewMode();
-                                            previewImage.setImageBitmap(bitmap);
                                         } else {
                                             Log.e(TAG, "onImageReady: base64 bitmap is null");
                                             statusText.setText("图片解析失败");
@@ -852,7 +955,7 @@ public class MainActivity extends AppCompatActivity {
         try {
             String queueJson = daemonService.getPrintQueue();
             org.json.JSONArray arr = new org.json.JSONArray(queueJson);
-            jobCountText.setText("队列: " + arr.length() + " 个任务");
+            statusText.setText("队列: " + arr.length() + " 个任务");
         } catch (Exception e) {
             Log.e(TAG, "getPrintQueue error", e);
         }
@@ -872,41 +975,38 @@ public class MainActivity extends AppCompatActivity {
     // ============================================================
 
     private void showVoiceMode() {
-        if (launcherContainer != null) {
-            launcherContainer.setVisibility(View.GONE);
-        }
+        launcherContainer.setVisibility(View.GONE);
+        launcherHeader.setVisibility(View.VISIBLE);
         voiceContainer.setVisibility(View.VISIBLE);
         generatingContainer.setVisibility(View.GONE);
         previewContainer.setVisibility(View.GONE);
-        bottomBar.setVisibility(View.VISIBLE);
         currentPreviewUrl = null;
         currentTranscript = null;
         statusText.setText("");
         pttButton.clearColorFilter();
+        if (headerBackButton != null) headerBackButton.setVisibility(View.VISIBLE);
     }
 
     private void showGeneratingMode(String transcript) {
-        if (launcherContainer != null) {
-            launcherContainer.setVisibility(View.GONE);
-        }
+        launcherContainer.setVisibility(View.GONE);
+        launcherHeader.setVisibility(View.VISIBLE);
         voiceContainer.setVisibility(View.GONE);
         generatingContainer.setVisibility(View.VISIBLE);
         previewContainer.setVisibility(View.GONE);
-        bottomBar.setVisibility(View.GONE);
         generatingText.setText("🎨 AI 正在根据「" + transcript + "」生成图片...");
         generatingProgress.setVisibility(View.VISIBLE);
+        if (headerBackButton != null) headerBackButton.setVisibility(View.VISIBLE);
     }
 
     private void showPreviewMode() {
-        if (launcherContainer != null) {
-            launcherContainer.setVisibility(View.GONE);
-        }
+        launcherContainer.setVisibility(View.GONE);
+        launcherHeader.setVisibility(View.VISIBLE);
         voiceContainer.setVisibility(View.GONE);
         generatingContainer.setVisibility(View.GONE);
         previewContainer.setVisibility(View.VISIBLE);
         previewContainer.bringToFront();
-        bottomBar.setVisibility(View.GONE);
         generatingProgress.setVisibility(View.GONE);
+        if (headerBackButton != null) headerBackButton.setVisibility(View.VISIBLE);
     }
 
     private boolean handleVoiceCommand(String text) {
@@ -943,7 +1043,8 @@ public class MainActivity extends AppCompatActivity {
             if (bound && daemonService != null) {
                 try { daemonService.speak("已返回主页"); } catch (Exception ignored) {}
             }
-            showLauncher();
+        showLauncher();
+        startStatusMonitoring();
             return true;
         }
         
@@ -957,5 +1058,175 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         return false;
+    }
+
+    // ============================================================
+    // 图片预览历史（左右滑动 + 本地文件存储）
+    // ============================================================
+
+    private static final int MAX_HISTORY_IMAGES = 50;
+    private static final long MIN_FREE_DISK_BYTES = 50 * 1024 * 1024L;
+
+    private void addToPreviewHistory(Bitmap bitmap, String transcript) {
+        // 保存到本地文件
+        String filePath = saveBitmapToFile(bitmap);
+        if (filePath != null) {
+            ensureFreeDiskSpace();
+        }
+
+        // 管理内存缓存上限
+        if (previewHistory.size() >= MAX_HISTORY_IMAGES) {
+            int removeCount = previewHistory.size() - MAX_HISTORY_IMAGES + 1;
+            for (int i = 0; i < removeCount; i++) {
+                previewHistory.remove(0);
+                previewTranscripts.remove(0);
+                if (!previewImageInfos.isEmpty()) {
+                    previewImageInfos.remove(0);
+                }
+            }
+        }
+
+        previewHistory.add(bitmap);
+        String transcriptStr = transcript != null ? transcript : "";
+        previewTranscripts.add(transcriptStr);
+        previewImageInfos.add(new PreviewImageInfo(
+                filePath != null ? filePath : "",
+                transcriptStr,
+                System.currentTimeMillis()));
+        previewAdapter.notifyDataSetChanged();
+        previewPager.setCurrentItem(previewHistory.size() - 1, false);
+        previewTranscript.setText(transcriptStr);
+    }
+
+    private String saveBitmapToFile(Bitmap bitmap) {
+        File dir = new File(getFilesDir(), "previews");
+        if (!dir.exists() && !dir.mkdirs()) {
+            Log.e(TAG, "saveBitmapToFile: failed to create previews dir");
+            return null;
+        }
+        String filename = System.currentTimeMillis() + "_" + UUID.randomUUID().toString().substring(0, 8) + ".jpg";
+        File file = new File(dir, filename);
+        try (FileOutputStream fos = new FileOutputStream(file)) {
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, fos);
+            fos.flush();
+            Log.i(TAG, "saveBitmapToFile: saved " + file.getAbsolutePath());
+            return file.getAbsolutePath();
+        } catch (IOException e) {
+            Log.e(TAG, "saveBitmapToFile error", e);
+            return null;
+        }
+    }
+
+    private void ensureFreeDiskSpace() {
+        File dir = new File(getFilesDir(), "previews");
+        if (!dir.exists()) return;
+        long freeBytes = dir.getFreeSpace();
+        if (freeBytes >= MIN_FREE_DISK_BYTES) return;
+
+        // 收集未保存的文件，按时间升序（最旧在前）
+        List<PreviewImageInfo> unsaved = new ArrayList<>();
+        for (PreviewImageInfo info : previewImageInfos) {
+            if (!info.savedToCloud && info.filePath != null && !info.filePath.isEmpty()) {
+                unsaved.add(info);
+            }
+        }
+        Collections.sort(unsaved, (a, b) -> Long.compare(a.timestamp, b.timestamp));
+
+        long targetFree = MIN_FREE_DISK_BYTES + 10 * 1024 * 1024L;
+        for (PreviewImageInfo info : unsaved) {
+            if (dir.getFreeSpace() >= targetFree) break;
+            File f = new File(info.filePath);
+            if (f.exists() && f.delete()) {
+                Log.i(TAG, "ensureFreeDiskSpace: deleted " + info.filePath);
+            }
+            // 从列表中移除
+            int idx = previewImageInfos.indexOf(info);
+            if (idx >= 0) {
+                previewImageInfos.remove(idx);
+                if (idx < previewHistory.size()) {
+                    previewHistory.remove(idx);
+                    previewTranscripts.remove(idx);
+                }
+            }
+        }
+        previewAdapter.notifyDataSetChanged();
+    }
+
+    // ============================================================
+    // 保存当前预览图片到云端
+    // ============================================================
+
+    private void saveCurrentImageToCloud() {
+        int pos = previewPager.getCurrentItem();
+        if (pos < 0 || pos >= previewImageInfos.size()) return;
+
+        final PreviewImageInfo info = previewImageInfos.get(pos);
+        if (info.filePath == null || info.filePath.isEmpty()) {
+            Toast.makeText(this, "图片文件不存在", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (info.savedToCloud) {
+            Toast.makeText(this, "已保存到云端", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        btnSavePreview.setEnabled(false);
+        btnSavePreview.setText("保存中...");
+
+        apiClient.uploadImage(info.filePath, info.transcript, new ApiClient.ApiCallback() {
+            @Override
+            public void onSuccess(String response) {
+                info.savedToCloud = true;
+                runOnUiThread(() -> {
+                    btnSavePreview.setEnabled(true);
+                    btnSavePreview.setText(getString(R.string.preview_save));
+                    Toast.makeText(MainActivity.this, "已保存到云端", Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onError(int code, String message) {
+                runOnUiThread(() -> {
+                    btnSavePreview.setEnabled(true);
+                    btnSavePreview.setText(getString(R.string.preview_save));
+                    Toast.makeText(MainActivity.this, "保存失败: " + message, Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+
+    // ============================================================
+    // PreviewPagerAdapter
+    // ============================================================
+
+    private class PreviewPagerAdapter extends PagerAdapter {
+        @Override
+        public int getCount() {
+            return previewHistory.size();
+        }
+
+        @Override
+        public boolean isViewFromObject(@NonNull View view, @NonNull Object object) {
+            return view == object;
+        }
+
+        @NonNull
+        @Override
+        public Object instantiateItem(@NonNull ViewGroup container, int position) {
+            ImageView imageView = new ImageView(MainActivity.this);
+            imageView.setLayoutParams(new ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT));
+            imageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            imageView.setImageBitmap(previewHistory.get(position));
+            container.addView(imageView);
+            return imageView;
+        }
+
+        @Override
+        public void destroyItem(@NonNull ViewGroup container, int position, @NonNull Object object) {
+            container.removeView((View) object);
+        }
     }
 }

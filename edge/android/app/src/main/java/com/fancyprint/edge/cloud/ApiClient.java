@@ -173,6 +173,62 @@ public class ApiClient {
     }
 
     /**
+     * 上传图片至云端（保存到用户作品集）
+     */
+    public void uploadImage(String imagePath, String transcript, ApiCallback callback) {
+        File imageFile = new File(imagePath);
+        if (!imageFile.exists()) {
+            callback.onError(400, "File not found");
+            return;
+        }
+
+        try {
+            String imageBase64;
+            try (FileInputStream fis = new FileInputStream(imageFile);
+                 ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = fis.read(buf)) != -1) {
+                    baos.write(buf, 0, n);
+                }
+                imageBase64 = android.util.Base64.encodeToString(baos.toByteArray(),
+                        android.util.Base64.NO_WRAP);
+            }
+
+            String escaped = transcript != null ? transcript.replace("\\", "\\\\").replace("\"", "\\\"") : "";
+            String json = "{\"image_base64\":\"" + imageBase64 + "\",\"transcript\":\"" + escaped + "\"}";
+
+            Request request = new Request.Builder()
+                    .url(BASE_URL + "/works/save")
+                    .post(RequestBody.create(json, JSON))
+                    .addHeader("X-Device-ID", getDeviceId())
+                    .build();
+
+            httpClient.newCall(request).enqueue(new okhttp3.Callback() {
+                @Override
+                public void onFailure(okhttp3.Call call, IOException e) {
+                    Log.e(TAG, "uploadImage failed", e);
+                    postError(callback, 500, e.getMessage());
+                }
+
+                @Override
+                public void onResponse(okhttp3.Call call, Response response) throws IOException {
+                    String body = response.body() != null ? response.body().string() : "";
+                    if (response.isSuccessful()) {
+                        postSuccess(callback, body);
+                    } else {
+                        postError(callback, response.code(), body);
+                    }
+                }
+            });
+
+        } catch (Exception e) {
+            Log.e(TAG, "uploadImage error", e);
+            callback.onError(500, e.getMessage());
+        }
+    }
+
+    /**
      * 检查打印任务审核状态
      */
     public void checkJobStatus(String jobId, ApiCallback callback) {

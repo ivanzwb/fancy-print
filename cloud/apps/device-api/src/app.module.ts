@@ -7,6 +7,7 @@ import { DevicesModule } from './devices/devices.module';
 import { JobsModule } from './jobs/jobs.module';
 import { MqttModule } from './mqtt/mqtt.module';
 import { PolicyModule } from './policy/policy.module';
+import { WorksModule } from './works/works.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { PolicyModule } from './policy/policy.module';
     PolicyModule,
     DevicesModule,
     JobsModule,
+    WorksModule,
   ],
   controllers: [AppController],
 })

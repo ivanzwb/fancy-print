@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import type { ImageGenAdapter, ImageGenAdapterInput } from './image-gen-adapter.interface';
 import { retryFetch } from '../vendor-http.service';
+import { resolveImageSize } from './image-size.utils';
 
 // ---------------------------------------------------------------------------
 // Baidu Wenxin Yige (文心一格) — AI 作画-iRAG版
@@ -139,6 +140,14 @@ export class BaiduWenxinImageGenAdapter implements ImageGenAdapter {
     const style = process.env.WENXIN_STYLE?.trim();
     if (style) {
       prompt = `${style}风格：${prompt}`;
+    }
+
+    // 通过 IMAGE_ASPECT 环境变量控制宽高比（如 "a4" / "a5"），
+    // 按 "1712*2432" 格式追加到 prompt 尾部，文心一格 iRAG API
+    // 支持从提示词中解析尺寸限定。不额外引入 WENXIN_RESOLUTION 变量。
+    const size = resolveImageSize();
+    if (size) {
+      prompt = `${prompt}，${size}`;
     }
 
     const timeoutMs = Math.min(

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import type { ImageGenAdapter, ImageGenAdapterInput } from './image-gen-adapter.interface';
 import { retryFetch } from '../vendor-http.service';
+import { resolveImageSize } from './image-size.utils';
 
 // ---------------------------------------------------------------------------
 // wanx-v1 (legacy) API — input.prompt format
@@ -53,7 +54,7 @@ function isNewModel(model: string): boolean {
  * - **v1**（默认 `wanx-v1`）：`/text2image/image-synthesis` + `input.prompt`。
  * - **v2**（`wan2.7-image-pro`、`wan2.7-image`、`qwen-image-*`）：`/image-generation/generation` + `input.messages`。
  *
- * 环境变量：`DASHSCOPE_API_KEY`（必填）、可选 `DASHSCOPE_BASE_URL`、`WANX_MODEL`、`WANX_IMAGE_SIZE`、`WANX_STYLE`。
+ * 环境变量：`DASHSCOPE_API_KEY`（必填）、可选 `DASHSCOPE_BASE_URL`、`WANX_MODEL`、`WANX_IMAGE_SIZE`、`WANX_STYLE`、`IMAGE_ASPECT`。
  */
 @Injectable()
 export class TongyiWanxiangImageGenAdapter implements ImageGenAdapter {
@@ -75,9 +76,10 @@ export class TongyiWanxiangImageGenAdapter implements ImageGenAdapter {
     const model = process.env.WANX_MODEL?.trim() || 'wanx-v1';
     const newApi = isNewModel(model);
 
-    // Size: v1 uses "1024*1024"; v2 uses "2K" / "1K" / "4K"
-    const sizeLegacy = process.env.WANX_IMAGE_SIZE?.trim() || '1024*1024';
-    const sizeV2 = process.env.WANX_IMAGE_SIZE?.trim() || '2K';
+    // Size resolution: IMAGE_ASPECT → WANX_IMAGE_SIZE → built-in defaults
+    const effectiveSize = resolveImageSize();
+    const sizeLegacy = effectiveSize || process.env.WANX_IMAGE_SIZE?.trim() || '1024*1024';
+    const sizeV2 = effectiveSize || process.env.WANX_IMAGE_SIZE?.trim() || '2K';
     const size = newApi ? sizeV2 : sizeLegacy;
 
     const style = process.env.WANX_STYLE?.trim();

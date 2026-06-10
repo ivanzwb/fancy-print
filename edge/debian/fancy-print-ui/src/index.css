@@ -49,11 +49,10 @@ html, body, #root {
 .home-launcher-bg {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(ellipse 120% 80% at 10% 20%, rgba(255, 182, 193, 0.55) 0%, transparent 50%),
-    radial-gradient(ellipse 100% 70% at 90% 15%, rgba(186, 230, 253, 0.5) 0%, transparent 45%),
-    radial-gradient(ellipse 80% 60% at 50% 100%, rgba(253, 224, 71, 0.35) 0%, transparent 50%),
-    linear-gradient(165deg, #f5d0fe 0%, #ddd6fe 28%, #bfdbfe 55%, #fce7f3 85%, #fef9c3 100%);
+  background-image: url('./assets/home-launcher-bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .home-launcher-decor {
@@ -188,21 +187,13 @@ html, body, #root {
 }
 
 .home-feature-card {
-  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 16px 12px;
-  border: 5px solid rgba(255, 255, 255, 0.95);
-  border-radius: 36px;
   cursor: pointer;
   text-align: center;
-  box-shadow:
-    0 8px 32px rgba(124, 58, 237, 0.12),
-    0 2px 0 rgba(255, 255, 255, 0.5) inset;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -210,48 +201,7 @@ html, body, #root {
   transform: scale(0.97);
 }
 
-.home-feature-card__glass {
-  position: absolute;
-  inset: 0;
-  border-radius: 30px;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  z-index: 0;
-}
-
-.home-feature-card--blue .home-feature-card__glass {
-  background: linear-gradient(145deg, rgba(191, 219, 254, 0.75), rgba(224, 242, 254, 0.55));
-}
-
-.home-feature-card--purple .home-feature-card__glass {
-  background: linear-gradient(145deg, rgba(221, 214, 254, 0.8), rgba(237, 233, 254, 0.55));
-}
-
-.home-feature-card--green .home-feature-card__glass {
-  background: linear-gradient(145deg, rgba(187, 247, 208, 0.78), rgba(220, 252, 231, 0.55));
-}
-
-.home-feature-card--yellow .home-feature-card__glass {
-  background: linear-gradient(145deg, rgba(254, 240, 138, 0.82), rgba(254, 249, 195, 0.55));
-}
-
-.home-feature-card--blue:hover { box-shadow: 0 12px 40px rgba(59, 130, 246, 0.2), 0 2px 0 rgba(255, 255, 255, 0.6) inset; }
-.home-feature-card--purple:hover { box-shadow: 0 12px 40px rgba(139, 92, 246, 0.2), 0 2px 0 rgba(255, 255, 255, 0.6) inset; }
-.home-feature-card--green:hover { box-shadow: 0 12px 40px rgba(34, 197, 94, 0.18), 0 2px 0 rgba(255, 255, 255, 0.6) inset; }
-.home-feature-card--yellow:hover { box-shadow: 0 12px 40px rgba(234, 179, 8, 0.2), 0 2px 0 rgba(255, 255, 255, 0.6) inset; }
-
-.home-feature-card__icon {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.08));
-}
-
 .home-feature-card__titles {
-  position: relative;
-  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -294,20 +244,10 @@ html, body, #root {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 8px 12px;
   border: none;
-  background: rgba(255, 255, 255, 0.45);
-  border-radius: 20px;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: none;
   color: #5b4d7a;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(91, 33, 182, 0.1);
-  transition: transform 0.12s ease, background 0.12s ease;
-}
-
-.home-settings-btn:active {
-  transform: scale(0.95);
 }
 
 .home-settings-gear {
@@ -346,10 +286,10 @@ html, body, #root {
   background: rgba(255, 255, 255, 0.14);
 }
 
-.mode-icon svg {
-  width: 22px;
-  height: 22px;
-  display: block;
+.mode-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* 顶栏 */

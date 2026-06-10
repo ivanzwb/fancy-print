@@ -35,6 +35,9 @@
     <string name="print_confirm_title">确认打印</string>
     <string name="btn_confirm_print">打印</string>
     <string name="btn_cancel">取消</string>
+    <string name="preview_print">打印</string>
+    <string name="preview_print_no_printer">未连接打印机</string>
+    <string name="preview_save">保存</string>
     <string name="job_submitted">打印任务已提交</string>
     <string name="job_failed">提交失败，请重试</string>
 

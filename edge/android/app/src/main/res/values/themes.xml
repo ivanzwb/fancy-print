@@ -20,4 +20,16 @@
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowContentOverlay">@null</item>
     </style>
+
+    <!-- Doc §7: 右侧工具栏按钮（weight 均分高度，宽高在 layout 中控制） -->
+    <!-- 320dpi 下 8dp × 2 = 16px 圆角，匹配 doc/7 设计 -->
+    <style name="BigButton" parent="Widget.MaterialComponents.Button">
+        <item name="android:textSize">22sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="cornerRadius">8dp</item>
+    </style>
+    <style name="BigButton.Primary">
+        <item name="backgroundTint">@color/accent</item>
+        <item name="android:textStyle">bold</item>
+    </style>
 </resources>

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import type { ImageGenAdapter, ImageGenAdapterInput } from './image-gen-adapter.interface';
 import { retryFetch } from '../vendor-http.service';
+import { resolveImageSize } from './image-size.utils';
 
 const SYNC_API_PATH = '/api/v1/services/aigc/multimodal-generation/generation';
 
@@ -27,7 +28,10 @@ export class QwenImageSyncAdapter implements ImageGenAdapter {
       process.env.DASHSCOPE_BASE_URL?.trim() ||
       'https://dashscope.aliyuncs.com';
     const model = process.env.WANX_MODEL?.trim() || 'qwen-image-2.0-pro';
-    const size = process.env.WANX_IMAGE_SIZE?.trim() || '2048*2048';
+    const size =
+      resolveImageSize() ||
+      process.env.WANX_IMAGE_SIZE?.trim() ||
+      '2048*2048';
     const workspace = process.env.DASHSCOPE_WORKSPACE_ID?.trim();
     const timeoutMs = Math.min(
       Math.max(Number(process.env.WANX_HTTP_TIMEOUT_MS ?? 180_000), 5000),
