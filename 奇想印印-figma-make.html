@@ -1,9 +1,10 @@
 <!DOCTYPE html>
+<!-- 来源：Figma Make「卡通打印机设计」https://www.figma.com/make/4QQJIqZrc8gkIFlCwp0wHJ/%E5%8D%A1%E9%80%9A%E6%89%93%E5%8D%B0%E6%9C%BA%E8%AE%BE%E8%AE%A1 — 单页 HTML 与 App.tsx / 子组件逻辑对齐（Tailwind CDN + 原生脚本） -->
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>奇想印印 · 儿童打印站</title>
+  <title>奇想印印 · 卡通打印机设计（Figma Make）</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet" />
@@ -130,11 +131,41 @@
     { id: 'city', label: '城市冒险', emoji: '🏙️', scene: '🏙️🚦🌳', color: 'linear-gradient(135deg,#fed7aa,#fde68a)' },
   ];
   const palette = {
-    farm: { characters: [{ emoji: '👩‍🌾', name: '农场主' }, { emoji: '🧒', name: '小孩' }, { emoji: '🐄', name: '奶牛' }], items: [{ emoji: '🌽', name: '玉米' }, { emoji: '🍎', name: '苹果' }, { emoji: '🥕', name: '胡萝卜' }] },
-    ocean: { characters: [{ emoji: '🧜‍♀️', name: '美人鱼' }, { emoji: '🐠', name: '热带鱼' }, { emoji: '🐙', name: '章鱼' }], items: [{ emoji: '🐚', name: '贝壳' }, { emoji: '🪸', name: '珊瑚' }, { emoji: '⚓', name: '船锚' }] },
-    forest: { characters: [{ emoji: '🧚', name: '小精灵' }, { emoji: '🦊', name: '狐狸' }, { emoji: '🦔', name: '刺猬' }], items: [{ emoji: '🍄', name: '蘑菇' }, { emoji: '🌳', name: '大树' }, { emoji: '🍁', name: '枫叶' }] },
-    space: { characters: [{ emoji: '👨‍🚀', name: '宇航员' }, { emoji: '👽', name: '外星人' }, { emoji: '🤖', name: '机器人' }], items: [{ emoji: '⭐', name: '星星' }, { emoji: '🌙', name: '月亮' }, { emoji: '🚀', name: '火箭' }] },
-    city: { characters: [{ emoji: '👨‍🚒', name: '消防员' }, { emoji: '👮', name: '警察' }, { emoji: '🐕', name: '小狗' }], items: [{ emoji: '🚦', name: '红绿灯' }, { emoji: '🏠', name: '小屋' }, { emoji: '🍦', name: '冰淇淋' }] },
+    farm: {
+      characters: [{ emoji: '👩‍🌾', name: '农场主' }, { emoji: '🧒', name: '小孩' }, { emoji: '🐄', name: '奶牛' }, { emoji: '🐔', name: '小鸡' }, { emoji: '🐷', name: '小猪' }, { emoji: '🐑', name: '绵羊' }],
+      items: [{ emoji: '🌽', name: '玉米' }, { emoji: '🍎', name: '苹果' }, { emoji: '🥕', name: '胡萝卜' }, { emoji: '🍓', name: '草莓' }, { emoji: '🥚', name: '鸡蛋' }, { emoji: '🌻', name: '向日葵' }],
+    },
+    ocean: {
+      characters: [{ emoji: '🧜‍♀️', name: '美人鱼' }, { emoji: '🤿', name: '潜水员' }, { emoji: '🐠', name: '热带鱼' }, { emoji: '🐙', name: '章鱼' }, { emoji: '🐢', name: '海龟' }, { emoji: '🦀', name: '螃蟹' }],
+      items: [{ emoji: '🐚', name: '贝壳' }, { emoji: '🪸', name: '珊瑚' }, { emoji: '⚓', name: '船锚' }, { emoji: '🏝️', name: '小岛' }, { emoji: '💎', name: '宝石' }, { emoji: '🌊', name: '海浪' }],
+    },
+    forest: {
+      characters: [{ emoji: '🧚', name: '小精灵' }, { emoji: '🧙', name: '巫师' }, { emoji: '🦊', name: '狐狸' }, { emoji: '🦔', name: '刺猬' }, { emoji: '🐿️', name: '松鼠' }, { emoji: '🦉', name: '猫头鹰' }],
+      items: [{ emoji: '🍄', name: '蘑菇' }, { emoji: '🌳', name: '大树' }, { emoji: '🍁', name: '枫叶' }, { emoji: '🌸', name: '樱花' }, { emoji: '🌰', name: '栗子' }, { emoji: '🎋', name: '竹子' }],
+    },
+    space: {
+      characters: [{ emoji: '👨‍🚀', name: '宇航员' }, { emoji: '👽', name: '外星人' }, { emoji: '🤖', name: '机器人' }, { emoji: '🪐', name: '土星' }, { emoji: '🛸', name: '飞碟' }, { emoji: '☄️', name: '彗星' }],
+      items: [{ emoji: '⭐', name: '星星' }, { emoji: '🌙', name: '月亮' }, { emoji: '🌠', name: '流星' }, { emoji: '🚀', name: '火箭' }, { emoji: '🛰️', name: '卫星' }, { emoji: '💫', name: '星光' }],
+    },
+    city: {
+      characters: [{ emoji: '👨‍🚒', name: '消防员' }, { emoji: '👮', name: '警察' }, { emoji: '🧑', name: '市民' }, { emoji: '🐕', name: '小狗' }, { emoji: '🐈', name: '小猫' }, { emoji: '🚌', name: '公交车' }],
+      items: [{ emoji: '🚦', name: '红绿灯' }, { emoji: '🏠', name: '小屋' }, { emoji: '🏢', name: '大楼' }, { emoji: '🌳', name: '大树' }, { emoji: '🍦', name: '冰淇淋' }, { emoji: '🎈', name: '气球' }],
+    },
+  };
+
+  const voicePool = {
+    scene: [
+      { prompt: '农场的早晨', themeId: 'farm' }, { prompt: '深海的秘密', themeId: 'ocean' }, { prompt: '魔法森林', themeId: 'forest' },
+      { prompt: '星际大冒险', themeId: 'space' }, { prompt: '城市街头', themeId: 'city' },
+    ],
+    characters: [
+      { prompt: '可爱的小熊', emoji: '🐻', name: '小熊' }, { prompt: '骑扫帚的巫师', emoji: '🧙', name: '巫师' }, { prompt: '彩虹独角兽', emoji: '🦄', name: '独角兽' },
+      { prompt: '戴帽子的侦探', emoji: '🕵️', name: '侦探' }, { prompt: '穿裙子的公主', emoji: '👸', name: '公主' }, { prompt: '机器猫', emoji: '🤖', name: '机器人' },
+    ],
+    items: [
+      { prompt: '一朵魔法玫瑰', emoji: '🌹', name: '魔法玫瑰' }, { prompt: '宝藏箱', emoji: '💰', name: '宝藏箱' }, { prompt: '飞行扫帚', emoji: '🧹', name: '飞行扫帚' },
+      { prompt: '神奇望远镜', emoji: '🔭', name: '望远镜' }, { prompt: '彩虹糖果', emoji: '🍬', name: '彩虹糖' }, { prompt: '会发光的蘑菇', emoji: '🍄', name: '发光蘑菇' },
+    ],
   };
 
   const typeColors = { 涂鸦: '#a855f7', 线稿: '#3b82f6', 安静书: '#f59e0b' };
@@ -146,8 +177,18 @@
     works: [],
     printToast: null,
     voice: { listening: false, transcript: '', generating: false, images: [], saved: {}, printed: {} },
-    line: { cat: '动物', search: '', mode: 'outline', preview: null, saved: false, printed: false, listening: false, transcript: '', generating: false },
-    book: { page: 'home', themeId: null, scene: null, placed: [], tab: 'characters', printedScene: false, saved: false },
+    line: { cat: '动物', mode: 'outline', preview: null, saved: false, printed: false, listening: false, transcript: '', generating: false },
+    book: {
+      btab: 'scene',
+      themeId: null,
+      placed: [],
+      saved: false,
+      printed: {},
+      listening: false,
+      transcript: '',
+      generating: false,
+      voiceResult: null,
+    },
     timers: [],
   };
 
@@ -254,9 +295,7 @@
   }
 
   function filteredLine() {
-    const s = state.line;
-    if (s.search) return allLineItems().filter(i => i.name.includes(s.search));
-    return lineArtData[s.cat] || [];
+    return lineArtData[state.line.cat] || [];
   }
 
   function modeBadge(mode) {
@@ -279,11 +318,9 @@
     const list = filteredLine();
     const key = s.preview ? s.preview.name + '-' + s.mode : '';
     const left = '<div class="w-full sm:w-[44%] flex flex-col gap-2 min-h-0">'
-      + '<div class="flex items-center gap-2 rounded-xl px-3 py-2 shrink-0" style="background:#f3e8ff;border:2px solid rgba(168,85,247,0.2)">' + iconSearch().replace('stroke="currentColor"', 'stroke="#a855f7"')
-      + '<input id="line-search" class="flex-1 bg-transparent outline-none font-nunito text-xs min-w-0" style="color:#3d2a5a" placeholder="搜索线稿模板..." value="' + (s.search || '') + '"/></div>'
-      + (!s.search ? '<div class="flex gap-1.5 flex-wrap shrink-0">' + categories.map(cat => (
+      + '<div class="flex gap-1.5 flex-wrap shrink-0">' + categories.map(cat => (
         '<button type="button" class="line-cat px-3 py-1 rounded-full font-nunito font-bold text-[11px] border-none active:scale-95" data-cat="' + cat + '" style="background:' + (s.cat === cat ? 'linear-gradient(135deg,#a855f7,#ec4899)' : '#f3e8ff') + ';color:' + (s.cat === cat ? 'white' : '#7c6a90') + '">' + cat + '</button>'
-      )).join('') + '</div>' : '')
+      )).join('') + '</div>'
       + '<div class="grid grid-cols-2 gap-2 flex-1 overflow-y-auto pr-1 content-start max-h-[40vh] sm:max-h-none">'
       + list.map(item => (
         '<button type="button" class="line-pick flex flex-col gap-1 rounded-xl p-1.5 cursor-pointer active:scale-95 text-left" data-name="' + item.name + '" style="background:' + (s.preview && s.preview.name === item.name ? 'linear-gradient(135deg,#fbcfe8,#ddd6fe)' : 'white') + ';border:' + (s.preview && s.preview.name === item.name ? '2px solid #c084fc' : '2px solid rgba(168,85,247,0.15)') + ';box-shadow:0 2px 8px rgba(168,85,247,0.08)">'
@@ -317,58 +354,120 @@
       + '<div class="flex-1 flex items-center justify-center min-h-0 overflow-hidden">' + rightPreview + '</div>' + rightBtns + '</div></div></div>';
   }
 
-  function renderBookHome() {
-    const b = state.book;
-    return '<div class="flex flex-col h-full p-4 gap-3 overflow-auto">'
-      + '<p class="font-nunito text-xs shrink-0" style="color:#7c6a90">挑一个场景主题，再往里加人物和物品 ✨</p>'
-      + '<div class="grid grid-cols-2 gap-2 flex-1 min-h-0 content-start">' + themes.map(t => (
-        '<button type="button" class="book-theme rounded-2xl px-4 py-3 flex items-center gap-3 font-nunito font-bold text-sm border-none active:scale-95 text-left" data-theme="' + t.id + '" style="background:' + (b.themeId === t.id ? 'linear-gradient(135deg,#a855f7,#ec4899)' : t.color) + ';color:' + (b.themeId === t.id ? 'white' : '#3d2a5a') + ';border:' + (b.themeId === t.id ? 'none' : '2px solid rgba(168,85,247,0.18)') + '">'
-        + '<span style="font-size:28px">' + t.emoji + '</span><div class="flex flex-col items-start"><span>' + t.label + '</span>'
-        + '<span style="font-size:11px;opacity:0.7;font-weight:400">' + (palette[t.id].characters.map(c => c.emoji).join(' ')) + '</span></div></button>'
-      )).join('') + '</div>'
-      + '<button type="button" id="book-gen" class="w-full py-3 rounded-2xl flex items-center justify-center gap-2 font-fredoka text-[15px] border-none active:scale-95 shrink-0" '
-      + (!b.themeId ? 'disabled ' : '')
-      + 'style="background:linear-gradient(135deg,#f59e0b,#f97316);color:white;opacity:' + (b.themeId ? '1' : '0.5') + '">✨ 生成场景</button></div>';
-  }
-
-  function renderBookEditor() {
-    const b = state.book;
-    const t = b.scene;
-    const pal = palette[t.id];
-    const list = b.tab === 'characters' ? pal.characters : pal.items;
-    return '<div class="flex flex-col h-full p-4 gap-3 overflow-hidden">'
-      + '<div class="flex items-center gap-3 rounded-2xl px-4 py-3 shrink-0 overflow-x-auto" style="background:linear-gradient(135deg,#fdf4ff,#fce7f3);border:2px dashed rgba(192,132,252,0.3)">'
-      + '<button type="button" id="book-back-home" class="flex items-center gap-1 px-3 py-2 rounded-xl font-nunito font-bold text-xs border-none shrink-0 active:scale-95" style="background:rgba(168,85,247,0.12);color:#7e22ce">' + iconArrow().replace('width="18"', 'width="14"').replace('height="18"', 'height="14"') + '换场景</button>'
-      + '<div class="font-fredoka text-xs shrink-0" style="color:#7e22ce">' + t.emoji + ' ' + t.label + '</div></div>'
-      + '<div class="flex gap-3 flex-1 min-h-0 overflow-hidden">'
-      + '<div class="w-[30%] min-w-[100px] flex flex-col gap-2 min-h-0">'
-      + '<div class="grid grid-cols-2 gap-1.5 shrink-0">'
-      + '<button type="button" class="book-tab py-1.5 rounded-xl font-nunito font-bold text-[11px] border-none" data-btab="characters" style="background:' + (b.tab === 'characters' ? 'linear-gradient(135deg,#a855f7,#ec4899)' : '#f3e8ff') + ';color:' + (b.tab === 'characters' ? 'white' : '#7c6a90') + '">👫 人物</button>'
-      + '<button type="button" class="book-tab py-1.5 rounded-xl font-nunito font-bold text-[11px] border-none" data-btab="items" style="background:' + (b.tab === 'items' ? 'linear-gradient(135deg,#a855f7,#ec4899)' : '#f3e8ff') + ';color:' + (b.tab === 'items' ? 'white' : '#7c6a90') + '">🎁 物品</button></div>'
-      + '<div class="rounded-2xl p-2 flex-1 min-h-0 overflow-y-auto" style="background:#faf5ff;border:2px solid rgba(192,132,252,0.2)">'
-      + '<div class="grid grid-cols-2 gap-1.5">' + list.map((item, i) => (
-        '<button type="button" class="book-add rounded-xl flex flex-col items-center justify-center gap-0.5 p-1 border-none active:scale-90" style="background:white;border:2px solid rgba(168,85,247,0.18);aspect-ratio:1" data-emoji="' + item.emoji + '" data-name="' + item.name + '">'
-        + '<span style="font-size:22px">' + item.emoji + '</span><span class="font-nunito text-[9px]" style="color:#7c6a90">' + item.name + '</span></button>'
-      )).join('') + '</div></div>'
-      + (b.placed.length ? '<div class="rounded-xl p-2 shrink-0 font-nunito text-[10px]" style="background:#f3e8ff;border:2px solid rgba(192,132,252,0.2);max-height:80px;overflow-y:auto">已加入 ' + b.placed.length + ' 个</div>' : '')
-      + '<button type="button" id="book-clear" class="py-1.5 rounded-xl font-nunito font-bold text-[11px] border-none shrink-0" style="background:#fee2e2;color:#b91c1c" ' + (!b.placed.length ? 'disabled' : '') + '>清空场景</button></div>'
-      + '<div class="flex-1 flex flex-col gap-2 min-h-0">'
-      + '<div class="flex-1 flex items-center justify-center min-h-0">'
-      + '<div class="rounded-2xl relative overflow-hidden w-full" style="aspect-ratio:210/148;max-height:100%;background:' + t.color + ';border:3px dashed rgba(168,85,247,0.3);box-shadow:0 8px 24px rgba(168,85,247,0.15)">'
-      + '<div class="absolute inset-0 flex items-end justify-center pb-4 opacity-20 pointer-events-none select-none"><span style="font-size:56px">' + t.scene + '</span></div>'
-      + '<div class="absolute top-2 left-2 px-2 py-0.5 rounded-full font-nunito text-[9px] font-bold" style="background:rgba(255,255,255,0.82);color:#7e22ce">' + t.emoji + ' ' + t.label + '</div>'
-      + b.placed.map(p => '<button type="button" class="book-placed absolute border-none bg-transparent cursor-pointer" style="left:' + p.x + '%;top:' + p.y + '%;transform:translate(-50%,-50%);font-size:' + p.size + 'px;filter:drop-shadow(0 3px 4px rgba(0,0,0,0.15))" data-id="' + p.id + '">' + p.emoji + '</button>').join('')
-      + (!b.placed.length ? '<div class="absolute inset-0 flex items-center justify-center pointer-events-none font-nunito text-xs" style="color:#7e22ce;opacity:0.5">从左边选人物或物品加入场景 ✨</div>' : '')
-      + '</div></div>'
-      + '<div class="flex gap-2 shrink-0 flex-wrap">'
-      + '<button type="button" id="book-save" class="flex-1 min-w-[80px] py-2 rounded-xl flex items-center justify-center gap-1 font-nunito font-bold text-[11px] border-none" style="background:' + (b.saved ? '#dcfce7' : '#f3e8ff') + ';color:' + (b.saved ? '#15803d' : '#7e22ce') + '">' + iconDownload() + (b.saved ? '已保存' : '保存') + '</button>'
-      + '<button type="button" id="book-print-scene" class="flex-1 min-w-[80px] py-2 rounded-xl flex items-center justify-center gap-1 font-nunito font-bold text-[11px] border-none" style="background:' + (b.printedScene ? '#dcfce7' : '#f3e8ff') + ';color:' + (b.printedScene ? '#15803d' : '#7e22ce') + '">' + iconPrinter() + '打印场景</button>'
-      + '<button type="button" id="book-print-full" class="flex-1 min-w-[80px] py-2 rounded-xl flex items-center justify-center gap-1 font-nunito font-bold text-[11px] border-none" style="background:linear-gradient(135deg,#a855f7,#ec4899);color:white">' + iconPrinter().replace('stroke="currentColor"', 'stroke="white"') + '打印全图</button>'
-      + '</div></div></div></div>';
+  function bookSelectedTheme() {
+    return state.book.themeId ? themes.find(t => t.id === state.book.themeId) : null;
   }
 
   function renderBookPanel() {
-    return state.book.page === 'editor' && state.book.scene ? renderBookEditor() : renderBookHome();
+    const b = state.book;
+    const st = bookSelectedTheme();
+    const pal = b.themeId ? palette[b.themeId] : null;
+    const tabLabel = { scene: '🎨 场景', characters: '👫 人物', items: '🎁 物品' };
+    const voiceSub = b.btab === 'scene' ? '场景' : b.btab === 'characters' ? '人物' : '物品';
+
+    const voiceBar = '<div class="flex items-center gap-3 rounded-2xl px-4 py-3 shrink-0" style="background:linear-gradient(135deg,#fdf4ff,#fce7f3);border:2px dashed rgba(192,132,252,0.3)">'
+      + '<button type="button" id="book-mic" class="relative w-12 h-12 rounded-full flex items-center justify-center shadow-lg shrink-0 border-[3px] border-white active:scale-95" style="background:' + (b.listening ? 'linear-gradient(135deg,#f43f5e,#ec4899)' : 'linear-gradient(135deg,#a855f7,#c084fc)') + '">'
+      + (b.listening ? '<span class="absolute inset-0 rounded-full opacity-30 animate-ping" style="background:#f43f5e"></span>' : '')
+      + iconMic(b.listening).replace('width="20"', 'width="18"').replace('height="20"', 'height="18"') + '</button>'
+      + '<div class="flex-1 min-w-0"><div class="font-fredoka text-sm" style="color:#7e22ce">📖 语音生成' + voiceSub + '</div>'
+      + (b.transcript
+        ? '<div class="truncate font-nunito text-xs" style="color:#3d2a5a">「' + b.transcript + '」' + (b.generating ? ' · AI 生成中...' : '') + '</div>'
+        : '<div class="font-nunito text-xs" style="color:#a78bba">' + (b.listening ? '🎙️ 正在听...' : '说出你想要的' + tabLabel[b.btab] + '，AI 帮你生成 ✨') + '</div>')
+      + '</div></div>';
+
+    let banner = '';
+    if (b.voiceResult && b.btab !== 'scene') {
+      const pr = b.printed[b.voiceResult.name];
+      banner = '<div class="flex items-center gap-2 rounded-xl px-3 py-2 shrink-0 flex-wrap" style="background:white;border:2px solid #c084fc">'
+        + '<span style="font-size:22px">' + b.voiceResult.emoji + '</span>'
+        + '<span class="font-nunito text-xs font-bold flex-1 min-w-[120px]" style="color:#5b21b6">AI 生成：' + b.voiceResult.name + '</span>'
+        + '<button type="button" id="book-vr-add" class="px-2 py-1 rounded-lg font-nunito font-bold text-[11px] border-none active:scale-95" style="background:linear-gradient(135deg,#a855f7,#ec4899);color:white">➕ 加入场景</button>'
+        + '<button type="button" id="book-vr-print" class="px-2 py-1 rounded-lg font-nunito font-bold text-[11px] border-none active:scale-95 flex items-center gap-1" style="background:' + (pr ? '#dcfce7' : '#f3e8ff') + ';color:' + (pr ? '#15803d' : '#7e22ce') + '">'
+        + (pr ? '✓ 已打印' : iconPrinter().replace('width="12"', 'width="10"').replace('height="12"', 'height="10"') + '<span>单独打印</span>') + '</button>'
+        + '<button type="button" id="book-vr-close" class="border-none bg-transparent text-[16px] leading-none cursor-pointer px-1" style="color:#a78bba">×</button>'
+        + '</div>';
+    }
+
+    const mainTabs = (['scene', 'characters', 'items']).map(tid => {
+      const active = b.btab === tid;
+      const ic = tid === 'scene' ? '🎨' : tid === 'characters' ? '👫' : '🎁';
+      const tx = tid === 'scene' ? '场景' : tid === 'characters' ? '人物' : '物品';
+      return '<button type="button" class="book-main-tab py-2 rounded-xl flex flex-col items-center gap-0.5 font-nunito font-bold text-[11px] border-none active:scale-95" data-book-tab="' + tid + '" style="background:' + (active ? 'linear-gradient(135deg,#a855f7,#ec4899)' : '#f3e8ff') + ';color:' + (active ? 'white' : '#7c6a90') + '"><span style="font-size:16px">' + ic + '</span><span>' + tx + '</span></button>';
+    }).join('');
+
+    let scrollInner = '';
+    if (b.btab === 'scene') {
+      scrollInner = '<div class="flex flex-col gap-2">' + themes.map(theme => {
+        const sel = b.themeId === theme.id;
+        return '<button type="button" class="book-pick-theme w-full rounded-2xl px-3 py-2.5 flex items-center gap-3 font-nunito font-bold text-[13px] border-none active:scale-95 text-left" data-theme="' + theme.id + '" style="background:' + (sel ? 'linear-gradient(135deg,#a855f7,#ec4899)' : theme.color) + ';color:' + (sel ? 'white' : '#3d2a5a') + ';border:' + (sel ? '2px solid #c084fc' : '2px solid rgba(168,85,247,0.15)') + '">'
+          + '<span style="font-size:26px">' + theme.emoji + '</span><div class="flex flex-col items-start min-w-0 flex-1"><span>' + theme.label + '</span><span style="font-size:18px;line-height:1;opacity:0.8">' + theme.scene + '</span></div>'
+          + (sel ? '<span class="text-sm shrink-0">✓</span>' : '')
+          + '</button>';
+      }).join('') + (!b.themeId ? '<p class="text-center mt-1 font-nunito text-[11px]" style="color:#a78bba">点选一个场景开始创作 ✨</p>' : '') + '</div>';
+    } else if (!pal) {
+      scrollInner = '<div class="flex flex-col items-center justify-center gap-2 opacity-60 py-8"><span style="font-size:32px">👈</span><span class="font-nunito text-xs text-center px-2" style="color:#a78bba">先在「场景」tab 选一个主题</span></div>';
+    } else {
+      const list = b.btab === 'characters' ? pal.characters : pal.items;
+      scrollInner = '<div class="grid grid-cols-3 gap-2">' + list.map(item => (
+        '<button type="button" class="book-add rounded-xl flex flex-col items-center justify-center gap-0.5 p-2 border-none active:scale-90" style="background:white;border:2px solid rgba(168,85,247,0.18);box-shadow:0 2px 6px rgba(168,85,247,0.08);aspect-ratio:1" data-emoji="' + item.emoji + '" data-name="' + item.name + '">'
+        + '<span style="font-size:28px">' + item.emoji + '</span><span class="font-nunito text-[10px]" style="color:#7c6a90">' + item.name + '</span></button>'
+      )).join('') + '</div>';
+    }
+
+    let placedListHtml = '';
+    if ((b.btab === 'characters' || b.btab === 'items') && b.placed.length > 0) {
+      placedListHtml = '<div class="rounded-xl p-2 shrink-0 flex flex-col gap-1 font-nunito" style="background:#faf5ff;border:2px solid rgba(192,132,252,0.2);max-height:100px;overflow-y:auto">'
+        + '<div class="flex items-center justify-between mb-0.5"><span class="text-[10px] font-bold" style="color:#7e22ce">已加入 ' + b.placed.length + ' 个</span>'
+        + '<button type="button" id="book-clear-placed" class="flex items-center gap-0.5 border-none bg-transparent font-nunito text-[10px] font-bold active:scale-95" style="color:#f43f5e">🔄 清空</button></div>'
+        + b.placed.map(p => {
+          const pe = b.printed[p.name];
+          return '<div class="flex items-center gap-1.5">'
+            + '<span style="font-size:14px">' + p.emoji + '</span><span class="text-[10px] flex-1 truncate" style="color:#5b21b6">' + p.name + '</span>'
+            + '<button type="button" class="book-elem-print px-1.5 py-0.5 rounded-full border-none font-nunito text-[9px] active:scale-95" data-pname="' + p.name + '" data-pemoji="' + p.emoji + '" style="background:' + (pe ? '#dcfce7' : '#a855f7') + ';color:' + (pe ? '#15803d' : 'white') + '">' + (pe ? '✓' : '⎙') + '</button>'
+            + '<button type="button" class="book-remove-placed border-none bg-transparent text-[14px] leading-none cursor-pointer px-0.5" style="color:#d1d5db" data-pid="' + p.id + '">×</button></div>';
+        }).join('')
+        + '</div>';
+    }
+
+    let previewHtml;
+    if (st) {
+      previewHtml = '<div class="rounded-2xl relative overflow-hidden w-full" style="aspect-ratio:210/148;max-height:100%;background:' + st.color + ';border:3px dashed rgba(168,85,247,0.3);box-shadow:0 8px 24px rgba(168,85,247,0.15)">'
+        + '<div class="absolute inset-0 flex items-end justify-center pb-6 pointer-events-none select-none" style="opacity:0.2"><span style="font-size:80px">' + st.scene + '</span></div>'
+        + '<div class="absolute top-2 left-2 px-2 py-0.5 rounded-full font-nunito text-[9px] font-bold" style="background:rgba(255,255,255,0.85);color:#7e22ce">' + st.emoji + ' ' + st.label + '</div>'
+        + (b.placed.length ? '<div class="absolute top-2 right-2 px-2 py-0.5 rounded-full font-nunito text-[9px] font-bold" style="background:rgba(255,255,255,0.85);color:#7e22ce">' + b.placed.length + ' 个元素</div>' : '')
+        + b.placed.map(p => '<button type="button" class="book-placed absolute border-none bg-transparent cursor-pointer" style="left:' + p.x + '%;top:' + p.y + '%;transform:translate(-50%,-50%);font-size:' + p.size + 'px;filter:drop-shadow(0 3px 5px rgba(0,0,0,0.18))" data-id="' + p.id + '" title="点击移除">' + p.emoji + '</button>').join('')
+        + (b.placed.length === 0 ? '<div class="absolute inset-0 flex items-center justify-center pointer-events-none font-nunito text-xs" style="color:#7e22ce;opacity:0.45">从左边选人物或物品加入场景 ✨</div>' : '')
+        + '</div>';
+    } else {
+      previewHtml = '<div class="rounded-2xl flex flex-col items-center justify-center w-full" style="aspect-ratio:210/148;max-height:100%;background:linear-gradient(135deg,#faf5ff,#fce7f3);border:3px dashed rgba(192,132,252,0.3)">'
+        + '<span style="font-size:36px;color:#d8b4fe;margin-bottom:8px">✨</span>'
+        + '<span class="font-fredoka text-base" style="color:#c084fc">选一个场景开始创作</span>'
+        + '<span class="font-nunito text-xs mt-1" style="color:#a78bba">或用语音说出你想要的场景 🎙️</span></div>';
+    }
+
+    const dis = !st;
+    const printSceneStyle = (b.printed.scene ? '#dcfce7' : '#f3e8ff');
+    const printSceneColor = (b.printed.scene ? '#15803d' : '#7e22ce');
+
+    const bottomBtns = '<div class="flex gap-2 shrink-0 flex-wrap">'
+      + '<button type="button" id="book-save" class="flex-1 min-w-[88px] py-2 rounded-xl flex items-center justify-center gap-1 font-nunito font-bold text-xs border-none active:scale-95" ' + (dis ? 'disabled style="opacity:0.4;cursor:not-allowed;background:#f3e8ff;color:#a78bba"' : 'style="background:' + (b.saved ? '#dcfce7' : '#f3e8ff') + ';color:' + (b.saved ? '#15803d' : '#7e22ce') + '"') + '>' + iconDownload() + (b.saved ? '已保存' : '保存') + '</button>'
+      + '<button type="button" id="book-print-scene" class="flex-1 min-w-[88px] py-2 rounded-xl flex items-center justify-center gap-1 font-nunito font-bold text-xs border-none active:scale-95" ' + (dis ? 'disabled style="opacity:0.4;cursor:not-allowed;background:#f3e8ff;color:#a78bba"' : 'style="background:' + printSceneStyle + ';color:' + printSceneColor + '"') + '>' + iconPrinter() + '打印场景</button>'
+      + '<button type="button" id="book-print-full" class="flex-1 min-w-[88px] py-2 rounded-xl flex items-center justify-center gap-1 font-nunito font-bold text-xs border-none active:scale-95" ' + (dis ? 'disabled style="opacity:0.4;cursor:not-allowed;background:#e9d5ff;color:#a78bba"' : 'style="background:linear-gradient(135deg,#a855f7,#ec4899);color:white"') + '>' + iconPrinter().replace('stroke="currentColor"', 'stroke="white"') + '打印全图</button>'
+      + '</div>';
+
+    return '<div class="flex flex-col h-full p-4 gap-3 overflow-hidden min-h-0">'
+      + voiceBar
+      + '<div class="flex gap-4 flex-1 min-h-0 flex-col sm:flex-row overflow-hidden">'
+      + '<div class="w-full sm:w-[34%] flex flex-col gap-2 min-h-0 shrink-0">'
+      + '<div class="grid grid-cols-3 gap-1.5 shrink-0">' + mainTabs + '</div>'
+      + banner
+      + '<div class="flex-1 min-h-0 overflow-y-auto pr-0.5">' + scrollInner + '</div>'
+      + placedListHtml
+      + '</div>'
+      + '<div class="flex-1 flex flex-col gap-2 min-h-0 min-w-0">'
+      + '<div class="flex-1 flex items-center justify-center min-h-0 overflow-hidden">' + previewHtml + '</div>'
+      + bottomBtns
+      + '</div></div></div>';
   }
 
   function renderWorksPanel() {
@@ -478,14 +577,37 @@
     wire();
   }
 
+  function resetBookState() {
+    state.book = {
+      btab: 'scene',
+      themeId: null,
+      placed: [],
+      saved: false,
+      printed: {},
+      listening: false,
+      transcript: '',
+      generating: false,
+      voiceResult: null,
+    };
+  }
+
   function wire() {
     document.querySelectorAll('[data-tab]').forEach(btn => {
-      btn.addEventListener('click', () => { state.activeTab = btn.getAttribute('data-tab'); render(); });
+      btn.addEventListener('click', () => {
+        const next = btn.getAttribute('data-tab');
+        if (next === 'book') resetBookState();
+        state.activeTab = next;
+        render();
+      });
     });
     const st = document.getElementById('btn-settings');
     if (st) st.addEventListener('click', () => { state.showSettings = true; render(); });
     const sb = document.getElementById('sub-back');
-    if (sb) sb.addEventListener('click', () => { state.activeTab = null; render(); });
+    if (sb) sb.addEventListener('click', () => {
+      if (state.activeTab === 'book') resetBookState();
+      state.activeTab = null;
+      render();
+    });
     const sbb = document.getElementById('settings-back');
     if (sbb) sbb.addEventListener('click', () => { state.showSettings = false; render(); });
     const tc = document.getElementById('toast-close');
@@ -510,8 +632,6 @@
       }
     }));
 
-    const ls = document.getElementById('line-search');
-    if (ls) ls.addEventListener('input', e => { state.line.search = e.target.value; render(); });
     document.querySelectorAll('.line-cat').forEach(b => b.addEventListener('click', e => {
       state.line.cat = e.currentTarget.getAttribute('data-cat'); state.line.preview = null; state.line.saved = false; state.line.printed = false; render();
     }));
@@ -535,52 +655,102 @@
     const lm = document.getElementById('line-mic');
     if (lm) lm.addEventListener('click', onLineMic);
 
-    document.querySelectorAll('.book-theme').forEach(b => b.addEventListener('click', e => {
-      state.book.themeId = e.currentTarget.getAttribute('data-theme'); render();
+    const bm = document.getElementById('book-mic');
+    if (bm) bm.addEventListener('click', onBookMic);
+
+    document.querySelectorAll('.book-main-tab').forEach(b => b.addEventListener('click', e => {
+      state.book.btab = e.currentTarget.getAttribute('data-book-tab');
+      state.book.voiceResult = null;
+      render();
     }));
-    const bg = document.getElementById('book-gen');
-    if (bg) bg.addEventListener('click', () => {
-      if (!state.book.themeId) return;
-      const t = themes.find(x => x.id === state.book.themeId);
-      state.book.scene = t;
-      state.book.page = 'editor';
-      state.book.placed = [];
+    document.querySelectorAll('.book-pick-theme').forEach(b => b.addEventListener('click', e => {
+      state.book.themeId = e.currentTarget.getAttribute('data-theme');
       state.book.saved = false;
-      state.book.printedScene = false;
+      render();
+    }));
+
+    const bvrAdd = document.getElementById('book-vr-add');
+    if (bvrAdd) bvrAdd.addEventListener('click', () => {
+      const vr = state.book.voiceResult;
+      if (!vr) return;
+      state.book.placed.push({
+        id: String(Date.now() + Math.random()),
+        emoji: vr.emoji,
+        name: vr.name,
+        x: 12 + Math.random() * 76,
+        y: 15 + Math.random() * 60,
+        size: 28 + Math.random() * 18,
+      });
+      state.book.voiceResult = null;
+      state.book.saved = false;
       render();
     });
-    const bh = document.getElementById('book-back-home');
-    if (bh) bh.addEventListener('click', () => { state.book.page = 'home'; state.book.scene = null; render(); });
-    document.querySelectorAll('.book-tab').forEach(b => b.addEventListener('click', e => {
-      state.book.tab = e.currentTarget.getAttribute('data-btab'); render();
-    }));
+    const bvrPrint = document.getElementById('book-vr-print');
+    if (bvrPrint) bvrPrint.addEventListener('click', () => {
+      const vr = state.book.voiceResult;
+      if (!vr || state.book.printed[vr.name]) return;
+      addWork(vr.emoji, vr.name + ' · 人物/物品', '安静书');
+      state.book.printed[vr.name] = true;
+      render();
+    });
+    const bvrClose = document.getElementById('book-vr-close');
+    if (bvrClose) bvrClose.addEventListener('click', () => { state.book.voiceResult = null; render(); });
+
     document.querySelectorAll('.book-add').forEach(b => b.addEventListener('click', e => {
       const emoji = e.currentTarget.getAttribute('data-emoji');
       const name = e.currentTarget.getAttribute('data-name');
-      state.book.placed.push({ id: String(Date.now() + Math.random()), emoji, name, x: 15 + Math.random() * 70, y: 20 + Math.random() * 55, size: 28 + Math.random() * 12 });
+      state.book.placed.push({
+        id: String(Date.now() + Math.random()),
+        emoji, name,
+        x: 12 + Math.random() * 76,
+        y: 15 + Math.random() * 60,
+        size: 28 + Math.random() * 18,
+      });
+      state.book.saved = false;
       render();
     }));
     document.querySelectorAll('.book-placed').forEach(b => b.addEventListener('click', e => {
       const id = e.currentTarget.getAttribute('data-id');
-      state.book.placed = state.book.placed.filter(p => p.id !== id); render();
+      state.book.placed = state.book.placed.filter(p => p.id !== id);
+      render();
     }));
-    const bc = document.getElementById('book-clear');
-    if (bc) bc.addEventListener('click', () => { state.book.placed = []; render(); });
+    const bcp = document.getElementById('book-clear-placed');
+    if (bcp) bcp.addEventListener('click', () => { state.book.placed = []; state.book.saved = false; render(); });
+
+    document.querySelectorAll('.book-elem-print').forEach(b => b.addEventListener('click', e => {
+      e.stopPropagation();
+      const name = e.currentTarget.getAttribute('data-pname');
+      const emoji = e.currentTarget.getAttribute('data-pemoji');
+      if (state.book.printed[name]) return;
+      addWork(emoji, name + ' · 人物/物品', '安静书');
+      state.book.printed[name] = true;
+      render();
+    }));
+    document.querySelectorAll('.book-remove-placed').forEach(b => b.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = e.currentTarget.getAttribute('data-pid');
+      state.book.placed = state.book.placed.filter(p => p.id !== id);
+      state.book.saved = false;
+      render();
+    }));
+
     const bsa = document.getElementById('book-save');
-    if (bsa) bsa.addEventListener('click', () => { state.book.saved = true; render(); });
+    if (bsa) bsa.addEventListener('click', () => { if (bookSelectedTheme()) { state.book.saved = true; render(); } });
     const bps = document.getElementById('book-print-scene');
     if (bps) bps.addEventListener('click', () => {
-      const t = state.book.scene;
+      const t = bookSelectedTheme();
       if (!t) return;
       addWork(t.emoji, t.label + ' · 背景场景', '安静书');
-      state.book.printedScene = true; render();
+      state.book.printed.scene = true;
+      render();
     });
     const bpf = document.getElementById('book-print-full');
     if (bpf) bpf.addEventListener('click', () => {
-      const t = state.book.scene;
+      const t = bookSelectedTheme();
       if (!t) return;
       addWork(t.emoji, t.label + ' · 完整画面', '安静书');
-      state.book.printedScene = true; render();
+      state.book.printed.full = true;
+      render();
     });
 
     document.querySelectorAll('.work-star').forEach(b => b.addEventListener('click', e => {
@@ -596,6 +766,74 @@
       const id = e.currentTarget.getAttribute('data-id');
       state.works = state.works.filter(w => w.id !== id); render();
     }));
+  }
+
+  function onBookMic() {
+    const b = state.book;
+    if (b.listening || b.generating) return;
+    clearTimers();
+    b.listening = true;
+    b.transcript = '';
+    b.voiceResult = null;
+
+    let prompt = '';
+    let onDone = function () {};
+
+    if (b.btab === 'scene') {
+      const pool = voicePool.scene;
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      prompt = pick.prompt;
+      onDone = function () {
+        b.generating = true;
+        render();
+        setTimeout(function () {
+          b.themeId = pick.themeId;
+          b.generating = false;
+          b.saved = false;
+          render();
+        }, 1000);
+      };
+    } else if (b.btab === 'characters') {
+      const pool = voicePool.characters;
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      prompt = pick.prompt;
+      onDone = function () {
+        b.generating = true;
+        render();
+        setTimeout(function () {
+          b.voiceResult = { emoji: pick.emoji, name: pick.name };
+          b.generating = false;
+          render();
+        }, 1000);
+      };
+    } else {
+      const pool = voicePool.items;
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      prompt = pick.prompt;
+      onDone = function () {
+        b.generating = true;
+        render();
+        setTimeout(function () {
+          b.voiceResult = { emoji: pick.emoji, name: pick.name };
+          b.generating = false;
+          render();
+        }, 1000);
+      };
+    }
+
+    let i = 0;
+    const timer = setInterval(function () {
+      i++;
+      b.transcript = prompt.slice(0, i);
+      render();
+      if (i >= prompt.length) {
+        clearInterval(timer);
+        b.listening = false;
+        onDone();
+      }
+    }, 55);
+    state.timers.push(timer);
+    render();
   }
 
   function onVoiceMic() {
