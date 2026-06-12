@@ -61,6 +61,7 @@ import com.fancyprint.edge.IEdgeDaemonService;
 import com.fancyprint.edge.IPrintJobCallback;
 import com.fancyprint.edge.R;
 import com.fancyprint.edge.security.DeviceAdminReceiver;
+import com.fancyprint.edge.voice.VoiceIntent;
 
 /**
  * MainActivity — Kiosk 主界面（全屏沉浸、不可退出、开机自启）
@@ -833,14 +834,12 @@ public class MainActivity extends AppCompatActivity {
                             runOnUiThread(() -> {
                                 pttButton.clearColorFilter();
                                 currentTranscript = transcription;
-                                
-                                if (handleVoiceCommand(transcription)) {
-                                    isVoiceCommand = true;
-                                    return;
-                                }
-                                isVoiceCommand = false;
-                                showGeneratingMode(transcription);
                             });
+                        }
+
+                        @Override
+                        public void onIntentResult(String resultJson) {
+                            runOnUiThread(() -> handleVoiceIntentResult(resultJson));
                         }
 
                         @Override
@@ -917,8 +916,8 @@ public class MainActivity extends AppCompatActivity {
                         public void onError(int code, String message) {
                             runOnUiThread(() -> {
                                 pttButton.clearColorFilter();
-                                statusText.setText("识别失败: " + message);
                                 showVoiceMode();
+                                statusText.setText("识别失败: " + message);
                             });
                         }
                     });
@@ -1009,55 +1008,65 @@ public class MainActivity extends AppCompatActivity {
         if (headerBackButton != null) headerBackButton.setVisibility(View.VISIBLE);
     }
 
-    private boolean handleVoiceCommand(String text) {
-        if (text == null || text.isEmpty()) return false;
-        
-        String lower = text.toLowerCase().trim();
-        
-        if (containsAny(lower, "变线稿", "线稿", "涂色线稿", "涂色")) {
-            Toast.makeText(this, "🎨 切换到变线稿", Toast.LENGTH_SHORT).show();
-            enterWorkspace(ContentModes.UI_COLORING);
-            return true;
-        }
-        
-        if (containsAny(lower, "变彩画", "彩画", "画画", "创作", "ai画画")) {
-            Toast.makeText(this, "🖼️ 切换到变彩画", Toast.LENGTH_SHORT).show();
-            enterWorkspace(ContentModes.UI_AI_CREATE);
-            return true;
-        }
-        
-        if (containsAny(lower, "安静书", "安静", "模板")) {
-            Toast.makeText(this, "📖 切换到安静书", Toast.LENGTH_SHORT).show();
-            enterWorkspace(ContentModes.UI_TEMPLATE);
-            return true;
-        }
-        
-        if (containsAny(lower, "相册", "小相册", "我的作品")) {
-            Toast.makeText(this, "📸 切换到小相册", Toast.LENGTH_SHORT).show();
-            enterWorkspace(ContentModes.UI_MY_WORKS);
-            return true;
-        }
-        
-        if (containsAny(lower, "返回", "主页", "首页", "主界面", "回到主页")) {
-            Toast.makeText(this, "🏠 返回主页", Toast.LENGTH_SHORT).show();
-            if (bound && daemonService != null) {
-                try { daemonService.speak("已返回主页"); } catch (Exception ignored) {}
+    private void handleVoiceIntentResult(String resultJson) {
+        try {
+            org.json.JSONObject json = new org.json.JSONObject(resultJson);
+            String intent = json.optString("intent", VoiceIntent.ASK_CLARIFY);
+            String contentMode = json.optString("contentMode", "");
+            String prompt = json.optString("prompt", currentTranscript != null ? currentTranscript : "");
+            String replyText = json.optString("replyText", "");
+
+            if (VoiceIntent.CREATE_IMAGE.equals(intent)) {
+                isVoiceCommand = false;
+                showGeneratingMode(prompt);
+                return;
             }
-        showLauncher();
-        startStatusMonitoring();
-            return true;
+
+            isVoiceCommand = true;
+            if (VoiceIntent.SWITCH_MODE.equals(intent)) {
+                if (!contentMode.isEmpty()) {
+                    enterWorkspace(contentMode);
+                }
+            } else if (VoiceIntent.GO_HOME.equals(intent)) {
+                showLauncher();
+                startStatusMonitoring();
+            } else if (VoiceIntent.CONFIRM_PRINT.equals(intent)) {
+                confirmCurrentPrintByVoice();
+            } else if (VoiceIntent.CANCEL_CURRENT.equals(intent)) {
+                showVoiceMode();
+            } else if (VoiceIntent.HELP.equals(intent) || VoiceIntent.ASK_CLARIFY.equals(intent)) {
+                showVoiceMode();
+                statusText.setText(replyText);
+            } else {
+                showVoiceMode();
+                statusText.setText(replyText.isEmpty() ? "我没有听懂，可以再说一遍吗" : replyText);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "handleVoiceIntentResult parse error", e);
+            showVoiceMode();
+            statusText.setText("我没有听懂，可以再说一遍吗");
         }
-        
-        return false;
     }
-    
-    private boolean containsAny(String text, String... keywords) {
-        for (String keyword : keywords) {
-            if (text.contains(keyword)) {
-                return true;
-            }
+
+    private void confirmCurrentPrintByVoice() {
+        if (!bound || daemonService == null) {
+            statusText.setText("设备还没准备好");
+            return;
         }
-        return false;
+        if (pendingJobId == null || pendingJobId.isEmpty()) {
+            statusText.setText("还没有可以确认的打印任务");
+            return;
+        }
+        try {
+            boolean ok = daemonService.confirmPrintJob(pendingJobId);
+            statusText.setText(ok ? "已确认打印" : "确认打印失败");
+            if (ok) {
+                pendingJobId = null;
+            }
+        } catch (RemoteException e) {
+            Log.e(TAG, "confirmPrintJob by voice error", e);
+            statusText.setText("确认打印异常");
+        }
     }
 
     // ============================================================

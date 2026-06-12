@@ -27,7 +27,7 @@ export class AsrController {
   @Post('transcribe')
   @HttpCode(HttpStatus.OK)
   async transcribe(
-    @Body() body: { audio_base64: string; content_mode?: string },
+    @Body() body: { audio_base64: string; content_mode?: string; create_job?: boolean },
     @Headers('x-device-id') deviceId?: string,
   ) {
     const audioBase64 = body.audio_base64?.trim();
@@ -44,6 +44,10 @@ export class AsrController {
     if (!result) {
       this.logger.warn(`ASR returned no result for device=${deviceId?.trim() || 'unknown'}`);
       return { text: '', error: 'asr_no_result' };
+    }
+
+    if (body.create_job === false) {
+      return { text: result };
     }
 
     const devId = deviceId?.trim() || 'device-unknown';

@@ -25,6 +25,10 @@ public class AppConfig {
     private int printTimeoutSec;
     private int paperWidthMm = 76;
     private int paperHeightMm = 127;
+    private boolean kittenTtsEnabled = false;
+    private String kittenTtsBaseUrl = "http://127.0.0.1:3003";
+    private String kittenTtsSynthesizePath = "/v1/tts/kitten";
+    private int kittenTtsTimeoutSec = 3;
 
     private AppConfig() {}
 
@@ -62,8 +66,18 @@ public class AppConfig {
                 config.paperHeightMm = print.optInt("paper_height_mm", 127);
             }
 
+            // TTS
+            JSONObject tts = root.optJSONObject("tts");
+            if (tts != null) {
+                config.kittenTtsEnabled = tts.optBoolean("kitten_enabled", false);
+                config.kittenTtsBaseUrl = tts.optString("kitten_base_url", "http://127.0.0.1:3003");
+                config.kittenTtsSynthesizePath = tts.optString("kitten_synthesize_path", "/v1/tts/kitten");
+                config.kittenTtsTimeoutSec = tts.optInt("kitten_timeout_sec", 3);
+            }
+
             Log.i(TAG, "Config loaded: mqtt=" + config.mqttBrokerUrl
-                    + " https=" + config.httpsBaseUrl);
+                    + " https=" + config.httpsBaseUrl
+                    + " kittenTtsEnabled=" + config.kittenTtsEnabled);
 
         } catch (Exception e) {
             Log.e(TAG, "Failed to load config, using defaults", e);
@@ -72,6 +86,10 @@ public class AppConfig {
             config.httpsTimeoutConnect = 30;
             config.httpsTimeoutRead = 60;
             config.printTimeoutSec = 120;
+            config.kittenTtsEnabled = false;
+            config.kittenTtsBaseUrl = "http://127.0.0.1:3003";
+            config.kittenTtsSynthesizePath = "/v1/tts/kitten";
+            config.kittenTtsTimeoutSec = 3;
         }
         return config;
     }
@@ -83,4 +101,8 @@ public class AppConfig {
     public int getPrintTimeoutSec() { return printTimeoutSec; }
     public int getPaperWidthMm() { return paperWidthMm; }
     public int getPaperHeightMm() { return paperHeightMm; }
+    public boolean isKittenTtsEnabled() { return kittenTtsEnabled; }
+    public String getKittenTtsBaseUrl() { return kittenTtsBaseUrl; }
+    public String getKittenTtsSynthesizePath() { return kittenTtsSynthesizePath; }
+    public int getKittenTtsTimeoutSec() { return kittenTtsTimeoutSec; }
 }

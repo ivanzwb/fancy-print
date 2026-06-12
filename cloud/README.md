@@ -7,6 +7,7 @@
 | `apps/gateway` | Fastify | `3000` | 对外网关：TLS 终结、路由、限流（逻辑随迭代补充） |
 | `apps/device-api` | NestJS + Fastify | `3001` | 设备 HTTPS：任务、注册、策略等 |
 | `apps/parent-bff` | NestJS + Fastify | `3002` | 家长 BFF：账号强鉴权、家庭与设备视图 |
+| `apps/kitten-tts-service` | Python FastAPI | `3003` | 本地 KittenTTS 语音合成服务（离线部署） |
 
 共享库放在 `packages/*`（示例：`@fancy-print/config`）。
 
@@ -27,6 +28,7 @@ npm install
 npm run dev:gateway
 npm run dev:device-api
 npm run dev:parent-bff
+npm run dev:kitten-tts
 npm run build
 ```
 

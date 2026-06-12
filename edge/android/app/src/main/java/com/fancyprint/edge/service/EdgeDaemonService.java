@@ -25,6 +25,8 @@ import com.fancyprint.edge.ota.OtaManager;
 import com.fancyprint.edge.print.PrintJobManager;
 import com.fancyprint.edge.security.ParentalLockManager;
 import com.fancyprint.edge.storage.JobDatabase;
+import com.fancyprint.edge.voice.VoiceIntentResult;
+import com.fancyprint.edge.voice.VoiceIntentRouter;
 
 import org.json.JSONObject;
 
@@ -60,6 +62,7 @@ public class EdgeDaemonService extends Service {
     private ParentalLockManager parentalLockManager;
     private CloudConnectorService cloudConnector;
     private SherpaAsrService sherpaAsr;
+    private VoiceIntentRouter voiceIntentRouter;
     private OtaManager otaManager;
     private HealthMonitorService healthMonitor;
     private JobDatabase jobDatabase;
@@ -81,6 +84,7 @@ public class EdgeDaemonService extends Service {
         parentalLockManager = new ParentalLockManager(this);
         cloudConnector = new CloudConnectorService(this);
         sherpaAsr = new SherpaAsrService(this);
+        voiceIntentRouter = new VoiceIntentRouter();
         otaManager = new OtaManager(this);
         healthMonitor = new HealthMonitorService(this);
         healthMonitor.init(this);
@@ -317,6 +321,23 @@ public class EdgeDaemonService extends Service {
         });
     }
 
+    /**
+     * ASR 文本统一分流：设备命令回传 UI 执行，创作描述才进入云端生图。
+     */
+    private void routeRecognizedText(String text, IAsrCallback callback) {
+        VoiceIntentResult intent = voiceIntentRouter.parse(text);
+        try {
+            callback.onIntentResult(intent.toJson());
+        } catch (Exception e) {
+            Log.e(TAG, "routeRecognizedText: onIntentResult failed", e);
+        }
+        if (intent.shouldCreateImage()) {
+            submitTextToCloud(intent.prompt, callback);
+        } else if (intent.replyText != null && !intent.replyText.isEmpty()) {
+            audioController.speak(intent.replyText);
+        }
+    }
+
     // ============================================================
     // Binder — AIDL 实现
     // ============================================================
@@ -400,14 +421,14 @@ public class EdgeDaemonService extends Service {
                     Log.i(TAG, "Lazy-loading Sherpa-ONNX model");
                     sherpaAsr.loadModel();
                 }
-                if (sherpaAsr.isLoaded()) {
+                    if (sherpaAsr.isLoaded()) {
                     String text = sherpaAsr.transcribePcmFile(audioPath);
                     if (text != null && !text.isEmpty()) {
                         Log.i(TAG, "transcribe: local ASR success, text=\"" + text + "\"");
                         try { callback.onSuccess(text); } catch (Exception ignored) {}
 
-                        // 本地 ASR 成功 → 提交文字到云端生图
-                        submitTextToCloud(text, callback);
+                        // 本地 ASR 成功 → 先解析命令；只有创作描述才提交云端生图
+                        routeRecognizedText(text, callback);
                         return;
                     }
                 }
@@ -423,9 +444,17 @@ public class EdgeDaemonService extends Service {
                         String jobId = json.optString("job_id", null);
                         Log.i(TAG, "transcribe: text=\"" + text + "\" jobId=" + jobId);
                         callback.onSuccess(text);
-                        // 有 job_id → 后台轮询等待生图完成
-                        if (jobId != null && !jobId.isEmpty()) {
-                            pollJobForPreview(jobId);
+                        VoiceIntentResult intent = voiceIntentRouter.parse(text);
+                        try { callback.onIntentResult(intent.toJson()); } catch (Exception ignored) {}
+                        // 云端 ASR 可能已创建 job；只有创作描述才继续轮询预览。
+                        if (intent.shouldCreateImage()) {
+                            if (jobId != null && !jobId.isEmpty()) {
+                                pollJobForPreview(jobId);
+                            } else {
+                                submitTextToCloud(intent.prompt, callback);
+                            }
+                        } else if (intent.replyText != null && !intent.replyText.isEmpty()) {
+                            audioController.speak(intent.replyText);
                         }
                     } catch (Exception e) {
                         Log.e(TAG, "transcribe: parse error", e);

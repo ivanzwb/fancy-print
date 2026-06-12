@@ -13,7 +13,8 @@
     "postinstall": "npm run build -w @fancy-print/config --if-present",
     "dev:gateway": "npm run dev -w gateway",
     "dev:device-api": "npm run dev -w device-api",
-    "dev:parent-bff": "npm run dev -w parent-bff"
+    "dev:parent-bff": "npm run dev -w parent-bff",
+    "dev:kitten-tts": "cd apps/kitten-tts-service && uvicorn main:app --host 0.0.0.0 --port ${KITTEN_PORT:-3003}"
   },
   "devDependencies": {
     "typescript": "^5.7.3"

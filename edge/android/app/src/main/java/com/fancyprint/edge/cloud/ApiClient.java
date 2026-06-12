@@ -140,7 +140,10 @@ public class ApiClient {
                         android.util.Base64.NO_WRAP);
             }
 
-            String json = "{\"audio_base64\":\"" + audioBase64 + "\"}";
+            JSONObject body = new JSONObject();
+            body.put("audio_base64", audioBase64);
+            body.put("create_job", false);
+            String json = body.toString();
 
             Request request = new Request.Builder()
                     .url(BASE_URL + "/asr/transcribe")
