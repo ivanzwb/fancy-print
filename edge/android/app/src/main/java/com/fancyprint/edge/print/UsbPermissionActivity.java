@@ -5,13 +5,17 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.res.Configuration;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.DisplayMetrics;
 import android.util.Log;
 
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.fancyprint.edge.FancyPrintApplication;
 
 /**
  * UsbPermissionActivity — USB 权限请求透明 Activity
@@ -22,6 +26,19 @@ import androidx.appcompat.app.AppCompatActivity;
 public class UsbPermissionActivity extends AppCompatActivity {
 
     private static final String TAG = "UsbPermissionActivity";
+
+    @Override
+    protected void attachBaseContext(Context newBase) {
+        if (FancyPrintApplication.isRk3566Overdensed()) {
+            Configuration config = new Configuration(newBase.getResources().getConfiguration());
+            config.densityDpi = DisplayMetrics.DENSITY_MEDIUM;
+            super.attachBaseContext(newBase.createConfigurationContext(config));
+        } else {
+            super.attachBaseContext(newBase);
+        }
+    }
+
+
     private static final String ACTION_USB_PERMISSION = "com.fancyprint.edge.USB_PERMISSION";
 
     private final BroadcastReceiver permissionReceiver = new BroadcastReceiver() {

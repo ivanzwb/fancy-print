@@ -4,7 +4,9 @@ import android.app.Application;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.os.Build;
+import android.util.DisplayMetrics;
 import android.util.Log;
 
 /**
@@ -39,9 +41,15 @@ public class FancyPrintApplication extends Application {
      */
     public static volatile String selectedUiContentMode = ContentModes.UI_AI_CREATE;
 
+    public static boolean isRk3566Overdensed() {
+        DisplayMetrics dm = Resources.getSystem().getDisplayMetrics();
+        return dm.widthPixels == 1024 && dm.heightPixels == 600 && dm.densityDpi > DisplayMetrics.DENSITY_MEDIUM;
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
+
         Log.i(TAG, "FancyPrintApplication onCreate — Android " + Build.VERSION.RELEASE
                 + " (API " + Build.VERSION.SDK_INT + ")");
 

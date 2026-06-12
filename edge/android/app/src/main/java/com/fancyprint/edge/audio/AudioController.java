@@ -14,15 +14,12 @@ import android.speech.tts.TextToSpeech;
 import android.util.Log;
 
 import com.fancyprint.edge.R;
-import com.fancyprint.edge.config.AppConfig;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Locale;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * AudioController — 音频控制器
@@ -53,8 +50,6 @@ public class AudioController {
     // TTS
     private TextToSpeech textToSpeech;
     private boolean ttsReady = false;
-    private final KittenTtsClient kittenTtsClient;
-    private final ExecutorService speechExecutor;
 
     public AudioController(Context context) {
         this.context = context;
@@ -63,9 +58,6 @@ public class AudioController {
             recordingsDir.mkdirs();
         }
         this.audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-        AppConfig config = AppConfig.load(context);
-        this.kittenTtsClient = new KittenTtsClient(context, config);
-        this.speechExecutor = Executors.newSingleThreadExecutor();
         initTts();
     }
 
@@ -78,8 +70,6 @@ public class AudioController {
                     Log.w(TAG, "TTS: Chinese not supported, falling back to default");
                     textToSpeech.setLanguage(Locale.getDefault());
                 }
-                textToSpeech.setSpeechRate(0.92f);
-                textToSpeech.setPitch(1.08f);
                 ttsReady = true;
                 Log.i(TAG, "TTS initialized");
             } else {
@@ -155,44 +145,16 @@ public class AudioController {
     // ============================================================
 
     /**
-     * TTS 语音播报（Kitten TTS 优先，降级到预录制音频，最后系统 TTS）
+     * TTS 语音播报（优先使用预录制音频）
      */
     public void speak(String text) {
-        if (kittenTtsClient != null && kittenTtsClient.isEnabled()) {
-            speechExecutor.execute(() -> speakDynamicText(text));
-        } else {
-            int resId = getTextToAudioResource(text);
-            if (resId != 0) {
-                playRawResource(resId);
-            } else {
-                speechExecutor.execute(() -> speakDynamicText(text));
-            }
-        }
-    }
-
-    private void speakDynamicText(String text) {
-        if (text == null || text.trim().isEmpty()) {
-            return;
-        }
-        if (kittenTtsClient != null && kittenTtsClient.isEnabled()) {
-            File wavFile = kittenTtsClient.synthesizeToWav(text);
-            if (wavFile != null && wavFile.exists()) {
-                playAudio(wavFile.getAbsolutePath(), 1.0f);
-                Log.i(TAG, "Kitten TTS speak: " + text);
-                return;
-            }
-            Log.w(TAG, "Kitten TTS unavailable, fallback to pre-recorded audio");
-            int resId = getTextToAudioResource(text);
-            if (resId != 0) {
-                playRawResource(resId);
-                return;
-            }
-        }
-        if (ttsReady && textToSpeech != null) {
-            stopAudio();
+        int resId = getTextToAudioResource(text);
+        if (resId != 0) {
+            playRawResource(resId);
+        } else if (ttsReady && textToSpeech != null) {
             requestAudioFocus();
             textToSpeech.speak(text, TextToSpeech.QUEUE_FLUSH, null, null);
-            Log.i(TAG, "System TTS speak: " + text);
+            Log.i(TAG, "TTS speak: " + text);
         } else {
             Log.w(TAG, "TTS not ready, cannot speak: " + text);
         }
@@ -286,7 +248,7 @@ public class AudioController {
                     AudioManager.AUDIOFOCUS_GAIN)
                     .setAudioAttributes(new AudioAttributes.Builder()
                             .setUsage(AudioAttributes.USAGE_MEDIA)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                             .build())
                     .build();
             audioManager.requestAudioFocus(focusRequest);
@@ -303,7 +265,7 @@ public class AudioController {
                     AudioManager.AUDIOFOCUS_GAIN)
                     .setAudioAttributes(new AudioAttributes.Builder()
                             .setUsage(AudioAttributes.USAGE_MEDIA)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                             .build())
                     .build();
             audioManager.abandonAudioFocusRequest(focusRequest);
@@ -316,13 +278,6 @@ public class AudioController {
      * 停止播放
      */
     public void stopAudio() {
-        if (textToSpeech != null) {
-            try {
-                textToSpeech.stop();
-            } catch (Exception e) {
-                Log.e(TAG, "Error stopping TTS", e);
-            }
-        }
         if (mediaPlayer != null) {
             try {
                 mediaPlayer.stop();
@@ -475,7 +430,6 @@ public class AudioController {
      * 释放资源
      */
     public void release() {
-        speechExecutor.shutdownNow();
         stopAudio();
         if (textToSpeech != null) {
             try {
