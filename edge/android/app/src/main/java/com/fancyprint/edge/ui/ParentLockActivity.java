@@ -4,10 +4,12 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.res.Configuration;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.text.InputType;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -17,6 +19,7 @@ import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.fancyprint.edge.IEdgeDaemonService;
+import com.fancyprint.edge.FancyPrintApplication;
 import com.fancyprint.edge.R;
 
 /**
@@ -29,6 +32,19 @@ import com.fancyprint.edge.R;
 public class ParentLockActivity extends AppCompatActivity {
 
     private static final String TAG = "ParentLockActivity";
+
+    @Override
+    protected void attachBaseContext(Context newBase) {
+        if (FancyPrintApplication.isRk3566Overdensed()) {
+            Configuration config = new Configuration(newBase.getResources().getConfiguration());
+            config.densityDpi = DisplayMetrics.DENSITY_MEDIUM;
+            super.attachBaseContext(newBase.createConfigurationContext(config));
+        } else {
+            super.attachBaseContext(newBase);
+        }
+    }
+
+
 
     private IEdgeDaemonService daemonService;
     private boolean bound = false;

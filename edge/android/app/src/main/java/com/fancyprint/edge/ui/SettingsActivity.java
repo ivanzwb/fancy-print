@@ -5,6 +5,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.res.Configuration;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.WifiInfo;
@@ -14,6 +15,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.provider.Settings;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
@@ -24,6 +26,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.fancyprint.edge.IEdgeDaemonService;
+import com.fancyprint.edge.FancyPrintApplication;
 import com.fancyprint.edge.R;
 
 /**
@@ -39,6 +42,19 @@ import com.fancyprint.edge.R;
 public class SettingsActivity extends AppCompatActivity {
 
     private static final String TAG = "SettingsActivity";
+
+    @Override
+    protected void attachBaseContext(Context newBase) {
+        if (FancyPrintApplication.isRk3566Overdensed()) {
+            Configuration config = new Configuration(newBase.getResources().getConfiguration());
+            config.densityDpi = DisplayMetrics.DENSITY_MEDIUM;
+            super.attachBaseContext(newBase.createConfigurationContext(config));
+        } else {
+            super.attachBaseContext(newBase);
+        }
+    }
+
+
 
     private IEdgeDaemonService daemonService;
     private boolean bound = false;
