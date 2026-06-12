@@ -42,7 +42,11 @@ android {
 
     buildFeatures {
         aidl = true
-        compose = false
+        compose = true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.8"
     }
 
     packaging {
@@ -63,6 +67,14 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("com.google.android.material:material:1.11.0")
+    implementation(platform("androidx.compose:compose-bom:2024.02.01"))
+    implementation("androidx.activity:activity-compose:1.8.2")
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.compose.ui:ui-graphics")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-extended")
 
     // Room (offline queue)
     implementation("androidx.room:room-runtime:2.6.1")
@@ -101,4 +113,5 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    debugImplementation("androidx.compose.ui:ui-tooling")
 }
