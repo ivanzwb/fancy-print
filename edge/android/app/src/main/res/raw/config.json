@@ -19,11 +19,5 @@
     "timeout_sec": 120,
     "paper_width_mm": 76,
     "paper_height_mm": 127
-  },
-  "tts": {
-    "kitten_enabled": true,
-    "kitten_base_url": "http://127.0.0.1:3003",
-    "kitten_synthesize_path": "/v1/tts/kitten",
-    "kitten_timeout_sec": 15
   }
 }
